@@ -4,6 +4,7 @@ drop table if exists mbb.school_divs;
 
 create table mbb.school_divs (
 	school_id	int,
+	season_href	text,
 	school_name	text,
 	season		int,
 	division	int	
