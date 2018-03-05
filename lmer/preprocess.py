@@ -1,5 +1,6 @@
 import pandas as pd
 import re
+from geopy.distance import vincenty
 
 school_divs = pd.read_csv('csv\\school_divs.csv', header = 0)[['season','school_id','division']]
 
@@ -39,6 +40,10 @@ for var in ['lat','long']:
         
     data.loc[:,'site_' + var] = data.apply(lambda x: x['school_' + var] if x.location == 'Home' else x['opp_' + var]
                                     if x.location == 'Away' else x['site_' + var], axis = 1)
+    
+for side in ['school','opp']:
+    data.loc[:,side + '_dist'] = data.apply(lambda x: vincenty((x[side + '_lat'], x[side + '_long']), (x.site_lat, x.site_long)).miles
+                if x[[side + '_lat', side + '_lat', 'site_lat', 'site_long']].isnull().sum() == 0 else None, axis = 1)
             
 data.loc[:,'perc_capacity'] = data.apply(lambda x: x.attend/x.school_capacity
                                  if (x.location == 'Home') and (x.school_capacity > 0) else
