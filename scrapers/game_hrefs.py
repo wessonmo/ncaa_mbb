@@ -1,4 +1,4 @@
-from functions.soupify import soupify
+from wranglers.soupify import soupify
 import csv
 import pandas as pd
 from collections import OrderedDict

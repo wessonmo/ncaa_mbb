@@ -29,7 +29,7 @@ except IOError as error:
     if str(error) == 'File ncaa_scrapers\csv\games.csv does not exist':
         with open('ncaa_scrapers\\csv\\games.csv', 'wb') as csvfile:
             csvwriter = csv.writer(csvfile, delimiter = ',', quotechar = '"', quoting = csv.QUOTE_MINIMAL)
-            csvwriter.writerow(['school_id','season','opp_id','game_date','team_score','opp_score', 'location','site','ot','attend'])
+            csvwriter.writerow(['school_id','season','opp_id','game_date','school_score','opp_score', 'location','site','ot','attend'])
         games = pd.read_csv('ncaa_scrapers\\csv\\games.csv', header = 0)
     else:
         raise error
@@ -127,7 +127,7 @@ for school_id, i in zip(set(team_index.team_id),range(len(set(team_index.team_id
                 ('opp_id', [int(re.compile('(?<=\()[0-9]+(?=\))').search(x.find_all('td')[0].find('a').get('href')).group(0))
                                 if x.find_all('td')[0].find('a') != None else '999999' for x in results]),
                 ('game_date', [x.find_all('td')[1].text for x in results]),
-                ('team_score', [int(x.find_all('td')[2].text) for x in results]),
+                ('school_score', [int(x.find_all('td')[2].text) for x in results]),
                 ('opp_score', [int(x.find_all('td')[3].text) for x in results]),
                 ('location', [x.find_all('td')[4].text.strip() for x in results]),
                 ('site', [x.find_all('td')[5].text for x in results]),

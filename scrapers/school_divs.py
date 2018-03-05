@@ -1,4 +1,4 @@
-from py_functions.soupify import soupify
+from wranglers.soupify import soupify
 import pandas as pd
 import csv
 from datetime import date
