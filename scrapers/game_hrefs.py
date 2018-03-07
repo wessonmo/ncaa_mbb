@@ -23,8 +23,13 @@ for season_href, i in zip(season_hrefs, range(len(season_hrefs))):
     
     try:    
         tbody = soup.find('td', text = 'Schedule/Results\n           ').parent.parent
-    except:
+    except AttributeError:
+        with open('csv\\game_hrefs.csv', 'wb') as csvfile:
+            csvwriter = csv.writer(csvfile, delimiter = ',', quotechar = '"', quoting = csv.QUOTE_MINIMAL)
+            csvwriter.writerow([season_href,None,None])
+        print(season_href + ' FAIL ' + str(i) + '/' + str(len(season_hrefs)))
         continue
+    
     games = [x.find_all('td') for x in tbody.find_all('tr') if (x.get('class') == None) and (len(x.find_all('td')) == 3)]
     
     data = OrderedDict()
