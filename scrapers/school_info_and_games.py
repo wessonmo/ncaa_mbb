@@ -10,13 +10,13 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC 
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 
-team_index = pd.read_csv('ncaa_scrapers\\csv\\mbb_team_index.csv', header = 0).sort_values('team_name')
+school_divs = pd.read_csv('csv\\school_divs.csv', header = 0).sort_values('school_name')
 
 try:
-    school_info = pd.read_csv('ncaa_scrapers\\csv\\school_info.csv', header = 0)
+    school_info = pd.read_csv('csv\\school_info.csv', header = 0)
 except IOError as error:
-    if str(error) == 'File ncaa_scrapers\csv\school_info.csv does not exist':
-        with open('ncaa_scrapers\\csv\\school_info.csv', 'wb') as csvfile:
+    if str(error) == 'File csv\school_info.csv does not exist':
+        with open('csv\\school_info.csv', 'wb') as csvfile:
             csvwriter = csv.writer(csvfile, delimiter = ',', quotechar = '"', quoting = csv.QUOTE_MINIMAL)
             csvwriter.writerow(['school_id','season','city','arena','capacity'])
         school_info = pd.read_csv('ncaa_scrapers\\csv\\school_info.csv', header = 0)
@@ -24,13 +24,13 @@ except IOError as error:
         raise error
 
 try:
-    games = pd.read_csv('ncaa_scrapers\\csv\\games.csv', header = 0)
+    games = pd.read_csv('csv\\games.csv', header = 0)
 except IOError as error:
-    if str(error) == 'File ncaa_scrapers\csv\games.csv does not exist':
-        with open('ncaa_scrapers\\csv\\games.csv', 'wb') as csvfile:
+    if str(error) == 'File csv\games.csv does not exist':
+        with open('csv\\games.csv', 'wb') as csvfile:
             csvwriter = csv.writer(csvfile, delimiter = ',', quotechar = '"', quoting = csv.QUOTE_MINIMAL)
             csvwriter.writerow(['school_id','season','opp_id','game_date','school_score','opp_score', 'location','site','ot','attend'])
-        games = pd.read_csv('ncaa_scrapers\\csv\\games.csv', header = 0)
+        games = pd.read_csv('csv\\games.csv', header = 0)
     else:
         raise error
 
@@ -39,17 +39,17 @@ browser = webdriver.Firefox()
 form_base_xpath = '/html/body/table[2]/tbody/tr/td[2]/form/table/tbody/tr[2]/td/table/tbody/'
 results_page_xpath = '/html/body/form/table[2]/tbody/tr/td[1]/table/tbody/tr[6]/td[2]/a'
 
-for school_id, i in zip(set(team_index.team_id),range(len(set(team_index.team_id)))):
+for school_id, i in zip(set(school_divs.school_id),range(len(set(school_divs.school_id)))):
     
-    school_index = team_index.loc[team_index.team_id == school_id]
-    school_name = school_index.team_name.iloc[0]
+    school_index = school_divs.loc[school_divs.school_id == school_id]
+    school_name = school_index.school_name.iloc[0]
     school_seasons = set(school_index.season)
     
     info_needed = school_seasons - set(school_info.loc[school_info.school_id == school_id].season)
     games_needed = school_seasons - set(games.loc[games.school_id == school_id].season)
     
     if len(info_needed | games_needed) > 0:
-        print(school_name + '\t\t' + str(i) + '/' + str(len(set(team_index.team_id))))
+        print(school_name + '\t\t' + str(i) + '/' + str(len(set(school_divs.school_id))))
     
     for season in sorted(info_needed | games_needed):
     
@@ -71,10 +71,10 @@ for school_id, i in zip(set(team_index.team_id),range(len(set(team_index.team_id
         except TimeoutException:
             raise ValueError('form result issue')
         except NoSuchElementException:
-            with open('ncaa_scrapers\\csv\\school_info.csv', 'ab') as infocsv:
+            with open('csv\\school_info.csv', 'ab') as infocsv:
                 infowriter = csv.writer(infocsv, delimiter = ',', quotechar = '"', quoting = csv.QUOTE_MINIMAL)
                 infowriter.writerow([school_id,season,None,None,None])
-            with open('ncaa_scrapers\\csv\\games.csv', 'ab') as gamescsv:
+            with open('csv\\games.csv', 'ab') as gamescsv:
                 gamewriter = csv.writer(gamescsv, delimiter = ',', quotechar = '"', quoting = csv.QUOTE_MINIMAL)
                 gamewriter.writerow([school_id,season,None,None,None,None,None,None,None,None])
             print('\t' + str(season))
@@ -97,14 +97,14 @@ for school_id, i in zip(set(team_index.team_id),range(len(set(team_index.team_id
             except AttributeError:
                 arena, capacity = None, None
             
-            with open('ncaa_scrapers\\csv\\school_info.csv', 'ab') as infocsv:
+            with open('csv\\school_info.csv', 'ab') as infocsv:
                 infowriter = csv.writer(infocsv, delimiter = ',', quotechar = '"', quoting = csv.QUOTE_MINIMAL)
                 infowriter.writerow([school_id,season,school_loc,arena,capacity])
             
         if season in games_needed:
             
             if browser.find_element_by_xpath(results_page_xpath).text == '0-0':
-                with open('ncaa_scrapers\\csv\\games.csv', 'ab') as gamescsv:
+                with open('csv\\games.csv', 'ab') as gamescsv:
                     gamewriter = csv.writer(gamescsv, delimiter = ',', quotechar = '"', quoting = csv.QUOTE_MINIMAL)
                     gamewriter.writerow([school_id,season,None,None,None,None,None,None,None,None])
                 print('\t' + str(season))
@@ -136,7 +136,7 @@ for school_id, i in zip(set(team_index.team_id),range(len(set(team_index.team_id
                 ('attend', [int(re.sub(',','',x.find_all('td')[7].text)) for x in results])
                 )))
                 
-            with open('ncaa_scrapers\\csv\\games.csv', 'ab') as matchescsv:
+            with open('csv\\games.csv', 'ab') as matchescsv:
                 results_df.to_csv(matchescsv, header = False, index = False)
             
         print('\t' + str(season))
