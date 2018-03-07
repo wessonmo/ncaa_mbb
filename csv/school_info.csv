@@ -1570,7 +1570,6 @@ school_id,season,city,arena,capacity
 17094,2015,"Raleigh, NC",Hermann Student Center,300
 17094,2016,"Raleigh, NC",Hermann Student Center,300
 17094,2017,"Raleigh, NC",Hermann Student Center,300
-189,2010,,,
 189,2012,"Des Moines, IA",Drake Knapp Center,7152
 189,2013,"Des Moines, IA",Drake Knapp Center,7152
 189,2014,"Des Moines, IA",Drake Knapp Center,7152
@@ -2513,7 +2512,6 @@ school_id,season,city,arena,capacity
 319,2013,"Jersey City, NJ",John J. Moore Athletics & Fitness Center,2000
 319,2014,"Jersey City, NJ",John J. Moore Athletics & Fitness Center,2000
 319,2015,"Jersey City, NJ",John J. Moore Athletics & Fitness Center,2000
-319,2016,,,
 320,2012,"University Heights, OH",Tony DeCarlo Varisty Center,1350
 320,2013,"University Heights, OH",Tony DeCarlo Varisty Center,1350
 320,2014,"University Heights, OH",Tony DeCarlo Varisty Center,1350
@@ -3709,8 +3707,6 @@ school_id,season,city,arena,capacity
 481,2012,"Brooklyn, NY",Joseph J. & Violet J. Jacobs Building,327
 481,2013,"Brooklyn, NY",Joseph J. & Violet J. Jacobs Building,327
 481,2014,"Brooklyn, NY",Joseph J. & Violet J. Jacobs Building,327
-481,2015,,,
-481,2016,,,
 482,2010,"Niagara University, NY",Gallagher Center,2100
 482,2011,"Niagara University, NY",Gallagher Center,2100
 482,2012,"Niagara University, NY",Gallagher Center,2100
@@ -3815,8 +3811,6 @@ school_id,season,city,arena,capacity
 494,2015,"Grand Forks, ND",Betty Engelstad Sioux Center,3064
 494,2016,"Grand Forks, ND",Betty Engelstad Sioux Center,3064
 494,2017,"Grand Forks, ND",Betty Engelstad Sioux Center,3064
-8687,2015,,,
-8687,2016,,,
 496,2010,"Chicago, IL",North Park Gymnasium,1300
 496,2011,"Chicago, IL",North Park Gymnasium,1300
 496,2012,"Chicago, IL",North Park Gymnasium,1300
@@ -4567,7 +4561,6 @@ school_id,season,city,arena,capacity
 592,2010,"Laurinburg, NC",Harris Court,1400
 592,2011,"Laurinburg, NC",Harris Court,1400
 592,2012,"Laurinburg, NC",Harris Court,1400
-592,2013,,,
 593,2010,"Manchester, NH",Stoutenburgh Gymnasium,1600
 593,2011,"Manchester, NH",Stoutenburgh Gymnasium,1600
 593,2012,"Manchester, NH",Stoutenburgh Gymnasium,1600
@@ -4734,7 +4727,6 @@ school_id,season,city,arena,capacity
 615,2017,"Northfield, MN",Skoglund Athletic Center,3000
 616,2010,"Lawrenceville, VA",Taylor-Whitehead Gym,1500
 616,2011,"Lawrenceville, VA",Taylor-Whitehead Gym,1500
-616,2012,,,
 24639,2010,"Fort Lauderdale, FL",Rick Case Arena,4500
 24639,2011,"Fort Lauderdale, FL",Rick Case Arena,4500
 24639,2012,"Fort Lauderdale, FL",Rick Case Arena,4500
@@ -4911,8 +4903,6 @@ school_id,season,city,arena,capacity
 639,2015,"Loudonville, NY",Times Union Center,8065
 639,2016,"Loudonville, NY",Times Union Center,8065
 639,2017,"Loudonville, NY",Times Union Center,8065
-640,2015,,,
-640,2016,,,
 641,2010,"Indianola, IA",Cowles Fieldhouse,3000
 641,2011,"Indianola, IA",Cowles Fieldhouse,3000
 641,2012,"Indianola, IA",Cowles Fieldhouse,3000
@@ -4944,7 +4934,6 @@ school_id,season,city,arena,capacity
 2692,2014,"Oakdale, NY",Lasalle Center,1500
 2692,2015,"Oakdale, NY",Lasalle Center,1500
 2692,2016,"Oakdale, NY",Lasalle Center,1500
-2692,2017,,,
 645,2010,"Rohnert Park, CA",The Wolves' Den,2000
 645,2011,"Rohnert Park, CA",The Wolves' Den,2000
 645,2012,"Rohnert Park, CA",The Wolves' Den,2000
@@ -5208,7 +5197,6 @@ school_id,season,city,arena,capacity
 680,2014,"Tuscaloosa, AL",Birthright Alumni Hall,1500
 680,2015,"Tuscaloosa, AL",Birthright Alumni Hall,1500
 680,2016,"Tuscaloosa, AL",Birthright Alumni Hall,1500
-680,2017,,,
 681,2010,"Galloway, NJ",Sports Center,3000
 681,2011,"Galloway, NJ",Sports Center,3000
 681,2012,"Galloway, NJ",Sports Center,3000
@@ -5555,7 +5543,6 @@ school_id,season,city,arena,capacity
 731,2015,"Logan, UT",Dee Glen Smith Spectrum,10270
 731,2016,"Logan, UT",Dee Glen Smith Spectrum,10270
 731,2017,"Logan, UT",Dee Glen Smith Spectrum,10270
-10972,2015,,,
 10972,2016,"Pittsburgh, PA",Athletic & Fitness Center,600
 10972,2017,"Pittsburgh, PA",Athletic & Fitness Center,600
 733,2010,"Utica, NY",Clark Athletic Center,2200
@@ -6549,7 +6536,6 @@ school_id,season,city,arena,capacity
 1029,2011,"Takoma Park, MD",The Pitt,1000
 1029,2012,"Takoma Park, MD",The Pitt,1000
 1029,2013,"Takoma Park, MD",The Pitt,1000
-1029,2014,,,
 9223,2010,"Tigerville, SC",Hayes Gymnasium,1800
 9223,2011,"Tigerville, SC",Hayes Gymnasium,1800
 9223,2012,"Tigerville, SC",Hayes Gymnasium,1800
@@ -7091,8 +7077,6 @@ school_id,season,city,arena,capacity
 27854,2017,"Crookston, MN",Lysaker Gym,3500
 27859,2010,"Humacao          , PR",,
 27859,2011,"Humacao          , PR",,
-27859,2012,,,
-27859,2013,,,
 8398,2010,"Hamburg, NY",Brad Hafner Recreation Center,1200
 8398,2011,"Hamburg, NY",Brad Hafner Recreation Center,1200
 8398,2012,"Hamburg, NY",Brad Hafner Recreation Center,1200
@@ -7335,8 +7319,6 @@ school_id,season,city,arena,capacity
 1320,2017,"Clinton, SC",Ross E. Templeton Center,2500
 1321,2010,"Cayey, PR",,
 1321,2011,"Cayey, PR",,
-1321,2012,,,
-1321,2013,,,
 1328,2010,"Kansas City, MO",Mason-Halpin Field House,1500
 1328,2011,"Kansas City, MO",Mason-Halpin Field House,1500
 1328,2012,"Kansas City, MO",Mason-Halpin Field House,1500
@@ -7499,7 +7481,6 @@ school_id,season,city,arena,capacity
 30038,2015,"Mankato, MN",Sports & Fitness Center,800
 30038,2016,"Mankato, MN",Sports & Fitness Center,800
 30038,2017,"Mankato, MN",Sports & Fitness Center,800
-30039,2010,,,
 30039,2011,"Minneapolis, MN",Clark-Danielson Center,600
 30039,2012,"Minneapolis, MN",Clark-Danielson Center,600
 30039,2013,"Minneapolis, MN",Clark-Danielson Center,600
@@ -7507,7 +7488,6 @@ school_id,season,city,arena,capacity
 30039,2015,"Minneapolis, MN",Clark-Danielson Center,600
 30039,2016,"Minneapolis, MN",Clark-Danielson Center,600
 30039,2017,"Minneapolis, MN",Clark-Danielson Center,600
-30040,2010,,,
 30040,2011,"Presque Isle, ME",Wieden Gym,1050
 30040,2012,"Presque Isle, ME",Wieden Gym,1050
 30040,2013,"Presque Isle, ME",Wieden Gym,1050
@@ -7523,7 +7503,6 @@ school_id,season,city,arena,capacity
 30042,2015,"New London, CT",Yarnall Athletic Center,1200
 30042,2016,"New London, CT",Yarnall Athletic Center,1200
 30042,2017,"New London, CT",Yarnall Athletic Center,1200
-30043,2010,,,
 30044,2010,"Reading, PA",Beaver Community Center,550
 30044,2011,"Reading, PA",Beaver Community Center,550
 30044,2012,"Reading, PA",Beaver Community Center,550
@@ -7572,7 +7551,6 @@ school_id,season,city,arena,capacity
 30049,2015,"Wilberforce, OH",Beacom-Lewis Arena,2400
 30049,2016,"Wilberforce, OH",Beacom-Lewis Arena,2400
 30049,2017,"Wilberforce, OH",Beacom-Lewis Arena,2400
-30050,2010,,,
 30050,2011,"Springfield, IL",The Recreation & Athletic Center,3000
 30050,2012,"Springfield, IL",The Recreation & Athletic Center,3000
 30050,2013,"Springfield, IL",The Recreation & Athletic Center,3000
@@ -7668,7 +7646,6 @@ school_id,season,city,arena,capacity
 30067,2015,"Morrisville, NY",John W. Stewart Center for Student Activities,1000
 30067,2016,"Morrisville, NY",John W. Stewart Center for Student Activities,1000
 30067,2017,"Morrisville, NY",John W. Stewart Center for Student Activities,1000
-30069,2010,,,
 30069,2011,"Steubenville, OH",Finnegan Fieldhouse,900
 30069,2012,"Steubenville, OH",Finnegan Fieldhouse,900
 30069,2013,"Steubenville, OH",Finnegan Fieldhouse,900
@@ -7676,7 +7653,6 @@ school_id,season,city,arena,capacity
 30069,2015,"Steubenville, OH",Finnegan Fieldhouse,900
 30069,2016,"Steubenville, OH",Finnegan Fieldhouse,900
 30069,2017,"Steubenville, OH",Finnegan Fieldhouse,900
-30072,2010,,,
 30072,2011,"Brooklyn, NY",The Hill Center,300
 30072,2012,"Brooklyn, NY",The Hill Center,300
 30072,2013,"Brooklyn, NY",The Hill Center,300
@@ -7717,7 +7693,6 @@ school_id,season,city,arena,capacity
 30083,2015,"Cobleskill, NY",Ioro Gymnasium,1462
 30083,2016,"Cobleskill, NY",Ioro Gymnasium,1462
 30083,2017,"Cobleskill, NY",Ioro Gymnasium,1462
-30084,2010,,,
 30084,2011,"Beaver Falls, PA",Metheny,2500
 30084,2012,"Beaver Falls, PA",Metheny,2500
 30084,2013,"Beaver Falls, PA",Metheny,2500
@@ -7725,7 +7700,6 @@ school_id,season,city,arena,capacity
 30084,2015,"Beaver Falls, PA",Metheny,2500
 30084,2016,"Beaver Falls, PA",Metheny,2500
 30084,2017,"Beaver Falls, PA",Metheny,2500
-30085,2010,,,
 30085,2011,"Lancaster, PA",Horst Athletic Center,640
 30085,2012,"Lancaster, PA",Horst Athletic Center,640
 30085,2013,"Lancaster, PA",Horst Athletic Center,640
@@ -7843,7 +7817,6 @@ school_id,season,city,arena,capacity
 1445,2015,"Silver City, NM",Mustang Field House,2000
 1445,2016,"Silver City, NM",Mustang Field House,2000
 1445,2017,"Silver City, NM",Mustang Field House,2000
-30118,2010,,,
 30118,2011,"San Rafael, CA",Conlan Center,1285
 30118,2012,"San Rafael, CA",Conlan Center,1285
 30118,2013,"San Rafael, CA",Conlan Center,1285
@@ -7874,7 +7847,6 @@ school_id,season,city,arena,capacity
 1450,2015,"Fulton, MO",Westminster Gym,1000
 1450,2016,"Fulton, MO",Westminster Gym,1000
 1450,2017,"Fulton, MO",Westminster Gym,1000
-30123,2010,,,
 30124,2012,"Cedarville, OH",Callan Athletic Center,3500
 30124,2013,"Cedarville, OH",Callan Athletic Center,3500
 30124,2014,"Cedarville, OH",Callan Athletic Center,3500
@@ -8050,7 +8022,6 @@ school_id,season,city,arena,capacity
 23121,2016,"Richardson, TX",UTD Activity Center,2500
 23121,2017,"Richardson, TX",UTD Activity Center,2500
 30188,2017,"Bryn Athyn, PA",,
-30190,2015,,,
 30190,2016,"Williamsport, PA",,
 30190,2017,"Williamsport, PA",,
 1277,2010,"Nyack, NY",Bowman Center,1300
@@ -8091,7 +8062,6 @@ school_id,season,city,arena,capacity
 26107,2015,"Worcester, MA",Leicester Gymnasium,700
 26107,2016,"Worcester, MA",Leicester Gymnasium,700
 26107,2017,"Worcester, MA",Leicester Gymnasium,700
-30209,2015,,,
 30209,2016,"Salt Lake City, UT",Behnken Field House,1200
 30209,2017,"Salt Lake City, UT",Behnken Field House,1200
 15882,2010,"Rosemont, PA",Alumnae Hall,150
@@ -8102,7 +8072,6 @@ school_id,season,city,arena,capacity
 15882,2015,"Rosemont, PA",Alumnae Hall,150
 15882,2016,"Rosemont, PA",Alumnae Hall,150
 15882,2017,"Rosemont, PA",Alumnae Hall,150
-30222,2017,,,
 9754,2010,"Colorado Springs, CO",Gallogly Events Center,1250
 9754,2011,"Colorado Springs, CO",Gallogly Events Center,1250
 9754,2012,"Colorado Springs, CO",Gallogly Events Center,1250
@@ -8481,7 +8450,6 @@ school_id,season,city,arena,capacity
 665,2015,"Baton Rouge, LA",F.G. Clark Activity Center,7500
 665,2016,"Baton Rouge, LA",F.G. Clark Activity Center,7500
 665,2017,"Baton Rouge, LA",F.G. Clark Activity Center,7500
-26520,2015,,,
 28593,2010,"Birmingham, AL",Bill Battle Coliseum,1800
 28593,2011,"Birmingham, AL",Bill Battle Coliseum,1800
 28593,2012,"Birmingham, AL",Bill Battle Coliseum,1800
@@ -9470,16 +9438,12 @@ school_id,season,city,arena,capacity
 30036,2009,"Cresson, PA",Athletic Convocation & Wellness Center,2000
 1371,2009,"Durant, OK",Bloomer Sullivan Arena,3000
 30038,2009,"Mankato, MN",Sports & Fitness Center,800
-30039,2009,,,
-30040,2009,,,
 30042,2009,"New London, CT",Yarnall Athletic Center,1200
-30043,2009,,,
 30044,2009,"Reading, PA",Beaver Community Center,550
 30045,2009,"West Palm Beach, FL",Rubin Arena,2000
 8911,2009,"Milwaukee, WI",Recreation Complex,2500
 30047,2009,"La Plume, PA",Ace Spalding Arena,1000
 1376,2009,"Magnolia, AR",W.T. Watson Athletic Cent,1800
-30049,2009,,,
 30052,2009,"Dahlonega, GA",Memorial Hall,1025
 30054,2009,"Wichita, KS",Fugate Gymnasium,1242
 30055,2009,"Seaside, CA","Otter Sports Center,",1000
@@ -9491,14 +9455,11 @@ school_id,season,city,arena,capacity
 30065,2009,"Lyndonville, VT",Stannard Gym,1500
 30066,2009,"Lincoln, IL",Laughlin Center,1500
 30067,2009,"Morrisville, NY",John W. Stewart Center for Student Activities,1000
-30072,2009,,,
 1401,2009,"Fort Worth, TX",Sid W. Richardson Gymnasium,2500
 1402,2009,"Crestview Hills, KY",Connor Convocation Center,1200
 30075,2009,"Bismarck, ND",Activity Center,1500
 30081,2009,"Middletown, PA",Capital Union Building,1500
 30083,2009,"Cobleskill, NY",Ioro Gymnasium,1462
-30084,2009,,,
-30085,2009,,,
 577,2009,"Ripon, WI",Storzer Center,2500
 30088,2009,"Odessa, TX",UTPB Gym Complex (The Falcon Dome),1000
 388,2009,"Huntington, WV",Henderson Center,9043
@@ -9579,3 +9540,42 @@ school_id,season,city,arena,capacity
 18422,2009,"Nashua, NH",Muldoon Fitness Center,300
 2730,2009,"Jamaica, NY",Health & P.E. Complex,1200
 30037,2009,"Angola, IN",Hershey Hall,4500
+189,2010,"Des Moines, IA",Drake Knapp Center,7152
+319,2016,"Jersey City, NJ",John J. Moore Athletics & Fitness Center,2000
+481,2015,,,
+481,2016,,,
+8687,2015,,,
+8687,2016,,,
+592,2013,,,
+616,2012,,,
+640,2015,,,
+640,2016,,,
+2692,2017,,,
+680,2017,,,
+10972,2015,,,
+1029,2014,,,
+27859,2012,,,
+27859,2013,,,
+1321,2012,,,
+1321,2013,,,
+30039,2009,,,
+30039,2010,,,
+30040,2009,,,
+30040,2010,,,
+30043,2009,,,
+30043,2010,,,
+30049,2009,,,
+30050,2010,,,
+30069,2010,,,
+30072,2009,,,
+30072,2010,,,
+30084,2009,,,
+30084,2010,,,
+30085,2009,,,
+30085,2010,,,
+30118,2010,,,
+30123,2010,,,
+30190,2015,,,
+30209,2015,,,
+30222,2017,,,
+26520,2015,,,
