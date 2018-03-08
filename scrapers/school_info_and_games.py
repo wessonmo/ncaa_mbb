@@ -121,20 +121,24 @@ for school_id, i in zip(set(school_divs.school_id),range(len(set(school_divs.sch
             soup = BeautifulSoup(browser.page_source, 'lxml')
             results = soup.find('td', text = 'Opponent').find_parent('tbody').find_all('tr',
                         class_ = lambda x: x != 'schoolColors')
-            results_df = pd.DataFrame(OrderedDict((
-                ('school_id', [school_id]*len(results)),
-                ('season', [season]*len(results)),
-                ('opp_id', [int(re.compile('(?<=\()[0-9]+(?=\))').search(x.find_all('td')[0].find('a').get('href')).group(0))
-                                if x.find_all('td')[0].find('a') != None else '999999' for x in results]),
-                ('game_date', [x.find_all('td')[1].text for x in results]),
-                ('school_score', [int(x.find_all('td')[2].text) for x in results]),
-                ('opp_score', [int(x.find_all('td')[3].text) for x in results]),
-                ('location', [x.find_all('td')[4].text.strip() for x in results]),
-                ('site', [x.find_all('td')[5].text for x in results]),
-                ('ot', [int(x.find_all('td')[6].text.strip().split(' ')[0])
-                                if x.find_all('td')[6].text.strip() != '-' else '' for x in results]),
-                ('attend', [int(re.sub(',','',x.find_all('td')[7].text)) for x in results])
-                )))
+            
+            data = OrderedDict()
+            
+            data['school_id'] = [school_id]*len(results)
+            data['season'] = [season]*len(results)
+            data['opp_id'] = [int(re.compile('(?<=\()[0-9]+(?=\))').search(x.find_all('td')[0].find('a').get('href')).group(0))
+                                if x.find_all('td')[0].find('a') != None else '999999' for x in results]
+            data['game_date'] = [x.find_all('td')[1].text for x in results]
+            data['school_score'] = [int(x.find_all('td')[2].text) for x in results]
+            data['opp_score'] = [int(x.find_all('td')[3].text) for x in results]
+            data['location'] = [x.find_all('td')[4].text.strip() for x in results]
+            data['site'] = [x.find_all('td')[5].text for x in results]
+            data['ot'] = [int(x.find_all('td')[6].text.strip().split(' ')[0])
+                                if x.find_all('td')[6].text.strip() != '-' else '' for x in results]
+            data['attend'] = [int(re.sub(',','',x.find_all('td')[7].text)) for x in results]
+            
+            results_df = pd.DataFrame(data).sort_values(['game_date','location'])\
+                            .drop_duplicates(['school_id','opp_id','game_date'], keep = "last")
                 
             with open('csv\\games.csv', 'ab') as matchescsv:
                 results_df.to_csv(matchescsv, header = False, index = False)
