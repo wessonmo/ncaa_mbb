@@ -39,13 +39,12 @@ for df, var_list, title in zip([school_info, sites],[school_list,site_list],['sc
                 continue
             except TypeError:
                 break
+        
+        latlong_df = df.loc[df[var_list[-2]] == row[var_list[-2]],var_list]
+        latlong_df.loc[:,'latitude'] = latlong[0]
+        latlong_df.loc[:,'longitude'] = latlong[1]
             
-        if latlong != (None,None):
-            latlong_df = df.loc[df[var_list[-2]] == row[var_list[-2]],var_list]
-            latlong_df.loc[:,'latitude'] = latlong[0]
-            latlong_df.loc[:,'longitude'] = latlong[1]
-            
-            with open('csv\\' + title + '_loc.csv', 'ab') as csvfile:
-                latlong_df.to_csv(csvfile, header = False, index = False)
-            
-            print(row[var_list[-2]])
+        with open('csv\\' + title + '_loc.csv', 'ab') as csvfile:
+            latlong_df.to_csv(csvfile, header = False, index = False)
+        
+        print(row[var_list[-2]])
