@@ -52,7 +52,7 @@ for school_id, i in zip(set(school_divs.school_id),range(len(set(school_divs.sch
         print(school_name + '\t\t' + str(i) + '/' + str(len(set(school_divs.school_id))))
     
     for season in sorted(info_needed | games_needed):
-    
+        
         browser.get('http://web1.ncaa.org/stats/StatsSrv/careersearch')
         
         try:
@@ -139,6 +139,10 @@ for school_id, i in zip(set(school_divs.school_id),range(len(set(school_divs.sch
             
             results_df = pd.DataFrame(data).sort_values(['game_date','location'])\
                             .drop_duplicates(['school_id','opp_id','game_date'], keep = "last")
+                            
+            results_df.loc[:,'game_date'] = pd.to_datetime(results_df.loc[:,'game_date'])
+            results_df = results_df.loc[(results_df.game_date < '04-30-' + str(season))
+                & (results_df.game_date > '10-01-' + str(season - 1))]
                 
             with open('csv\\games.csv', 'ab') as matchescsv:
                 results_df.to_csv(matchescsv, header = False, index = False)
