@@ -12,13 +12,16 @@ create table mbb.games (
 	location	text,
 	site		text,
 	ot			int,
-	attend		int,
-	primary key (school_id, opp_id, game_date)
+	attend		int
 );
 
 truncate table mbb.games;
 
 \set csv_path '\'' :folder_path '\\games.csv\''
 copy mbb.games from :csv_path with header delimiter as ',' csv quote as '"';
+
+delete from mbb.games where opp_id is null;
+
+alter table mbb.games add primary key (school_id, opp_id, game_date);
 
 commit;
