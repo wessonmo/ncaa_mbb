@@ -134,7 +134,7 @@ for school_id, i in zip(set(school_divs.school_id),range(len(set(school_divs.sch
             data['location'] = [x.find_all('td')[4].text.strip() for x in results]
             data['site'] = [x.find_all('td')[5].text for x in results]
             data['ot'] = [int(x.find_all('td')[6].text.strip().split(' ')[0])
-                                if x.find_all('td')[6].text.strip() != '-' else '' for x in results]
+                                if '-' not in x.find_all('td')[6].text.strip() else None for x in results]
             data['attend'] = [int(re.sub(',','',x.find_all('td')[7].text)) for x in results]
             
             results_df = pd.DataFrame(data).sort_values(['game_date','location'])\
