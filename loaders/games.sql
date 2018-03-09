@@ -3,16 +3,16 @@ begin;
 drop table if exists mbb.games;
 
 create table mbb.games (
-	school_id	int,
-	season		int,
-	opp_id		int,
-	game_date	date,
-	team_score	int,
-	opp_score	int,
-	location	text,
-	site		text,
-	ot			int,
-	attend		int
+	school_id		float,
+	season			float,
+	opp_id			float,
+	game_date		date,
+	school_score	float,
+	opp_score		float,
+	location		text,
+	site			text,
+	ot				float,
+	attend			float
 );
 
 truncate table mbb.games;
