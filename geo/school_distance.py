@@ -26,9 +26,9 @@ for var in ['school','opp']:
         distances = pd.merge(distances, temp, how = 'left', on = var_list)
     
 distances.loc[:,'school_dist'] = distances.apply(lambda x: x.school_site_dist if pd.isnull(x.site) == False
-    else x.school_opp_id_dist if x.location == 'Away' else 0, axis = 1)
+    else x.school_opp_id_dist if x.location == 'Away' else None, axis = 1)
 distances.loc[:,'opp_dist'] = distances.apply(lambda x: x.opp_site_dist if pd.isnull(x.site) == False
-    else x.opp_school_id_dist if x.location == 'Home' else 0, axis = 1)
+    else x.opp_school_id_dist if x.location == 'Home' else None, axis = 1)
 
 distances = distances.loc[distances[['school_dist','opp_dist']].isnull().sum(axis = 1) < 2,
                           ['game_date','school_id','opp_id','school_dist','opp_dist']]

@@ -4,8 +4,8 @@ drop table if exists mbb.school_dist;
 
 create table mbb.school_dist (
 	game_date	date,
-	school_id	text,
-	opp_id		text,
+	school_id	float,
+	opp_id		float,
 	school_dist	float,
 	opp_dist	float,
 	primary key (game_date, school_id, opp_id)
