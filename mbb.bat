@@ -14,6 +14,8 @@ REM %python% -W ignore %~dp0\scrapers\starters.py
 REM %python% -W ignore %~dp0\geo\game_and_school_locations.py
 REM %python% -W ignore %~dp0\geo\school_distance.py
 
+REM %python% -W ignore %~dp0\kaggle\tournament_games.py
+
 for /f %%a in ('psql -U postgres -c "select 1 as result from pg_database where datname='ncaa'" -t') do set /a check=%%a
 
 if not defined check (createdb -U postgres ncaa)
@@ -26,5 +28,7 @@ psql -U postgres -d ncaa -v folder_path=%~dp0\csv -qf loaders/games.sql
 psql -U postgres -d ncaa -v folder_path=%~dp0\csv -qf loaders/school_loc.sql
 psql -U postgres -d ncaa -v folder_path=%~dp0\csv -qf loaders/game_loc.sql
 psql -U postgres -d ncaa -v folder_path=%~dp0\csv -qf loaders/school_dist.sql
+
+psql -U postgres -d ncaa -v folder_path=%~dp0\csv -qf loaders/tourn_games.sql
 
 pause
