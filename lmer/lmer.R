@@ -21,33 +21,39 @@ games$away_div <- relevel(as.factor(games$away_div),'4')
 games$dist_diff <- relevel(as.factor(games$dist_diff), ref = '0')
 games$location <- relevel(as.factor(games$location), ref = 'Neutral')
 
-formula <- pt_diff ~ (1|home_sid) + (1|away_sid) + (1|dist_diff) + (1|location) + (1|year) + home_div:away_div# + (1|matchup_id))
+base_formula <- pt_diff ~ (1|home_sid) + (1|away_sid) + (1|dist_diff) + (1|location) + home_div:away_div + (1|year)# + (1|matchup_id))
 
-  for (years in 4:9){
-    win <- NULL
-    lmer_pred <- NULL
+for (years in 0:9){
+  win <- NULL
+  lmer_pred <- NULL
+  
+  for (season in 2014:2017){
+    train <- games[(games$tourn == 0) & (games$season %in% (season - years):season),]
+    test <- games[(games$tourn == 1) & (games$season == season),]
     
-    for (season in 2014:2017){
-      train <- games[(games$tourn == 0) & (games$season %in% (season - years):season),]
-      test <- games[(games$tourn == 1) & (games$season == season),]
-      
-      fit <- lmer(formula, data = train, verbose = 0)
-      
-      win <- c(win,ifelse(test$pt_diff > 0, 1, 0))
-      lmer_pred <- c(lmer_pred, pnorm(predict(fit, newdata = test), mean = fixef(fit)['(Intercept)'], sd = summary(fit)$sigma))
+    if (years < 1){
+      formula <- update(base_formula, ~ . - (1|year))
+    } else {
+      formula <- base_formula
     }
     
-    lmer_logloss <- -mean(win*log(lmer_pred) + (1 - win)*log(1 - lmer_pred))
+    fit <- lmer(formula, data = train, verbose = 0)
     
-    for (i in 10:1){
-      lmer_adj_pred <- ifelse(lmer_pred <= i/100, 0.0000000001, ifelse(lmer_pred >= (1 - i/100), (1 - 0.0000000001), lmer_pred))
-      lmer_adj_logloss <- -mean(win*log(lmer_adj_pred) + (1 - win)*log(1 - lmer_adj_pred))
-      
-      if (lmer_adj_logloss < lmer_logloss){
-        break
-      }
-    }
-    
-    print(c(years,lmer_logloss,i,lmer_logloss - lmer_adj_logloss))
+    win <- c(win,ifelse(test$pt_diff > 0, 1, 0))
+    lmer_pred <- c(lmer_pred, pnorm(predict(fit, newdata = test), mean = fixef(fit)['(Intercept)'], sd = summary(fit)$sigma))
   }
+  
+  lmer_logloss <- -mean(win*log(lmer_pred) + (1 - win)*log(1 - lmer_pred))
+  
+  for (i in 10:1){
+    lmer_adj_pred <- ifelse(lmer_pred <= i/100, 0.0000000001, ifelse(lmer_pred >= (1 - i/100), (1 - 0.0000000001), lmer_pred))
+    lmer_adj_logloss <- -mean(win*log(lmer_adj_pred) + (1 - win)*log(1 - lmer_adj_pred))
+    
+    if (lmer_adj_logloss < lmer_logloss){
+      break
+    }
+  }
+  
+  print(c(years,lmer_logloss,i,lmer_logloss - lmer_adj_logloss))
+}
 
