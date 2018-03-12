@@ -4,39 +4,50 @@ library(readr)
 
 drv <- dbDriver('PostgreSQL')
 con <- dbConnect(drv, user='postgres', password='', host='localhost', port=5432, dbname='ncaa')
-query_string <- read_file("lmer\\query_string.txt")
+query_string <- read_file("lmer\\query_string2.txt")
 query <- dbSendQuery(con, query_string)
 
 query_df <- fetch(query,n=-1)
+# head(query_df,15)
 
 games <- query_df
 
-games$min <- 40 + games$ot*5
-games$pts_min <- games$pts/games$min
+games$year <- as.factor(games$season)
+games$home_sid <- as.factor(paste(games$season,games$home_id,sep = '_'))
+games$away_sid <- as.factor(paste(games$season,games$away_id,sep = '_'))
+games$matchup_id <- as.factor(apply(games, 1, function(x) gsub(' ','',paste(x['season'],min(x['home_id'],x['away_id']),max(x['home_id'],x['away_id']),sep = '_'))))
+games$home_div <- relevel(as.factor(games$home_div),'4')
+games$away_div <- relevel(as.factor(games$away_div),'4')
+games$dist_diff <- relevel(as.factor(games$dist_diff), ref = '0')
+games$location <- relevel(as.factor(games$location), ref = 'Neutral')
 
-games$cap_group <- ifelse((games$perc_capacity > 1) | (is.na(games$perc_capacity)), 'none',
-                          as.character(round(games$perc_capacity/10, digits = 2)*10))
+formula <- pt_diff ~ (1|home_sid) + (1|away_sid) + (1|dist_diff) + (1|location) + (1|year) + home_div:away_div# + (1|matchup_id))
 
-games$off_dist_diff <- ifelse(is.na(games$off_dist) | is.na(games$def_dist),'unknown',
-                              ifelse(games$off_dist - games$def_dist > 1000, 'def_big',
-                              ifelse(games$off_dist - games$def_dist > 500, 'def_med',
-                              ifelse(games$off_dist - games$def_dist < -1000, 'off_big',
-                              ifelse(games$off_dist - games$def_dist < -500, 'off_med',
-                                     'small')))))
+  for (years in 4:9){
+    win <- NULL
+    lmer_pred <- NULL
+    
+    for (season in 2014:2017){
+      train <- games[(games$tourn == 0) & (games$season %in% (season - years):season),]
+      test <- games[(games$tourn == 1) & (games$season == season),]
+      
+      fit <- lmer(formula, data = train, verbose = 0)
+      
+      win <- c(win,ifelse(test$pt_diff > 0, 1, 0))
+      lmer_pred <- c(lmer_pred, pnorm(predict(fit, newdata = test), mean = fixef(fit)['(Intercept)'], sd = summary(fit)$sigma))
+    }
+    
+    lmer_logloss <- -mean(win*log(lmer_pred) + (1 - win)*log(1 - lmer_pred))
+    
+    for (i in 10:1){
+      lmer_adj_pred <- ifelse(lmer_pred <= i/100, 0.0000000001, ifelse(lmer_pred >= (1 - i/100), (1 - 0.0000000001), lmer_pred))
+      lmer_adj_logloss <- -mean(win*log(lmer_adj_pred) + (1 - win)*log(1 - lmer_adj_pred))
+      
+      if (lmer_adj_logloss < lmer_logloss){
+        break
+      }
+    }
+    
+    print(c(years,lmer_logloss,i,lmer_logloss - lmer_adj_logloss))
+  }
 
-games$season <- as.factor(games$season)
-games$off_id <- as.factor(games$off_id)
-games$def_id <- as.factor(games$def_id)
-games$off_div <- relevel(as.factor(ifelse(is.na(games$off_div),'NA',games$off_div)), ref = 'NA')
-games$def_div <- relevel(as.factor(ifelse(is.na(games$def_div),'NA',games$def_div)), ref = 'NA')
-games$off_dist_diff <- relevel(as.factor(games$off_dist_diff), ref = 'unknown')
-games$loc <- relevel(as.factor(games$loc), ref = 'Neutral')
-games$ot_group <- relevel(as.factor(ifelse(games$ot > 3, '>3', ifelse(games$ot > 0, '>0', '0'))), ref = '0')
-
-train <- games[games$tourn == 0,]
-
-formula <- pts_min ~ (1|off_id) + (1|def_id) + season + off_div:def_div + off_dist_diff:loc + ot_group# + loc:cap_group
-
-fit <- lmer(formula, data = train, verbose = 0)
-
-summary(fit)
