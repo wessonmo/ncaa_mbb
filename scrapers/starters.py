@@ -1,4 +1,4 @@
-from wranglers.soupify import soupify
+from scrapers.functions.soupify import soupify
 import csv
 import pandas as pd
 from collections import OrderedDict
@@ -41,7 +41,7 @@ for game_href in game_hrefs_needed:
         for roster_soup, school_id in zip(roster_soups, school_ids):
             starters = [x.find_all('td')[0] for x in roster_soup[:5]]
             
-            if starters == []:
+            if len(starters) < 5:
                 with open('csv\\starters.csv', 'ab') as hrefscsv:
                     hrefwriter = csv.writer(hrefscsv, delimiter = ',', quotechar = '"', quoting = csv.QUOTE_MINIMAL)
                     hrefwriter.writerow([game_href,period,None,None,None])
