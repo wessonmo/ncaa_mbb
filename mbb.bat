@@ -30,5 +30,6 @@ psql -U postgres -d ncaa -v folder_path=%~dp0\csv -qf loaders/game_loc.sql
 psql -U postgres -d ncaa -v folder_path=%~dp0\csv -qf loaders/school_dist.sql
 
 psql -U postgres -d ncaa -v folder_path=%~dp0\csv -qf loaders/tourn_games.sql
+psql -U postgres -d ncaa -v folder_path=%~dp0\csv -qf loaders/games_stats.sql
 
 pause
