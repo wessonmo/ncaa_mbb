@@ -118,6 +118,6 @@ from
 		on
 			g.game_date = trn.game_date
 			and g.school_id = trn.school_id
-			and g.opp_id = trn.opp_id					
+			and g.opp_id = trn.opp_id
 where g.school_id < g.opp_id
 --limit 100
