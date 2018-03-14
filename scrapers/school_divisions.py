@@ -1,4 +1,4 @@
-from wranglers.soupify import soupify
+from scrapers.functions.soupify import soupify
 import pandas as pd
 import csv
 from datetime import date
@@ -8,13 +8,13 @@ first_season = 2009
 last_season = date.today().year if date.today().timetuple().tm_yday >= 72 else date.today().year - 1
 
 try:
-    school_divs = pd.read_csv('ncaa_scrapers\\csv\\school_divs.csv', header = 0)
+    school_divs = pd.read_csv('csv\\school_divs.csv', header = 0)
 except IOError as error:
-    if str(error) == 'File ncaa_scrapers\\csv\\school_divs.csv does not exist':
-        with open('ncaa_scrapers\\csv\\school_divs.csv', 'wb') as csvfile:
+    if str(error) == 'File csv\\school_divs.csv does not exist':
+        with open('csv\\school_divs.csv', 'wb') as csvfile:
             csvwriter = csv.writer(csvfile, delimiter = ',', quotechar = '"', quoting = csv.QUOTE_MINIMAL)
             csvwriter.writerow(['school_id','school_name','season','division'])
-        school_info = pd.read_csv('ncaa_scrapers\\csv\\school_divs.csv', header = 0)
+        school_info = pd.read_csv('csv\\school_divs.csv', header = 0)
     else:
         raise error
 
@@ -38,13 +38,14 @@ for season, division in sorted(seasons_to_scrape):
     data = OrderedDict()
     
     data['school_id'] = [int(x.get('href').split('/')[2]) for x in atags]
+    data['school_href'] = [x.get('href') for x in atags]
     data['school_name'] = [x.text for x in atags]
     data['season'] = [season]*len(atags)
     data['division'] = [division]*len(atags)
     
     team_data = pd.DataFrame(data)
     
-    with open('ncaa_scrapers\\csv\\school_divs.csv', 'ab') as csvfile:
+    with open('csv\\school_divs.csv', 'ab') as csvfile:
         team_data.to_csv(csvfile, index = False, header = False)
         
     print('\t\t' + str(division))
