@@ -106,10 +106,17 @@ for school_id, i in zip(set(school_divs.school_id),range(len(set(school_divs.sch
             
             coaches = len(coach_html.find_all('b', text = 'Name:'))
             for j in range(coaches):
-                coach_id = coach_html.find_all('b', text = 'Name:')[j].find_parent('td').find_next_sibling('td').find('a').get('href')
-                coach_id = int(re.compile('(?<=\()[0-9]+(?=\))').search(coach_id).group(0))
                 
-                coach_name = coach_html.find_all('b', text = 'Name:')[j].find_parent('td').find_next_sibling('td').find('a').text
+                try:
+                    coach_id = coach_html.find_all('b', text = 'Name:')[j].find_parent('td').find_next_sibling('td').find('a').get('href')
+                    coach_id = int(re.compile('(?<=\()[0-9]+(?=\))').search(coach_id).group(0))
+                    
+                    coach_name = coach_html.find_all('b', text = 'Name:')[j].find_parent('td').find_next_sibling('td').find('a').text
+                except AttributeError:
+                    coach_id = None
+                    
+                    coach_name = coach_html.find_all('b', text = 'Name:')[j].find_parent('td').find_next_sibling('td').text
+                
                 coach_name = re.sub('\xa0',' ',coach_name)
                 
                 alma_mater = coach_html.find_all('b', text = 'Alma Mater')[j].find_parent('td').find_next_sibling('td').text.split(',')[0]
