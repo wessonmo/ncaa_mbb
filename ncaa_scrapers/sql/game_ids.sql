@@ -5,6 +5,7 @@ drop table if exists ncaa.game_ids;
 create table ncaa.game_ids (
 	season_id	float,
 	school_id	float,
+	game_date	date,
 	opp_id		float,
 	game_id		float
 );
