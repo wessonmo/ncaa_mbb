@@ -1,0 +1,68 @@
+select
+	g.season,
+    g.game_date,
+    case
+    	when g.school_id < g.opp_id then coalesce(strn.tourn,0)
+        else coalesce(otrn.tourn,0)
+    end as tourn,
+    g.location,
+    coalesce(g.ot,0) as ot,
+    g.school_id as off_id,
+    coalesce(sdiv.division,4) as off_div,
+    case
+    	when g.school_id < g.opp_id and g.location = 'Home' then coalesce(sdist.school_dist,0)
+		when g.school_id < g.opp_id and g.location = 'Away' then sdist.school_dist
+		when g.school_id > g.opp_id and g.location = 'Home' then coalesce(odist.opp_dist,0)
+        else odist.opp_dist
+    end as off_dist,
+    g.opp_id as def_id,
+    coalesce(odiv.division,4) as def_div,
+    case
+    	when g.school_id < g.opp_id and g.location = 'Home' then coalesce(sdist.opp_dist,0)
+		when g.school_id < g.opp_id and g.location = 'Away' then sdist.opp_dist
+		when g.school_id > g.opp_id and g.location = 'Home' then coalesce(odist.school_dist,0)
+        else odist.school_dist
+    end as def_dist,
+    g.school_score as points,
+	stat.teff,
+	stat.efg,
+	stat.pta_min,
+	stat.astp,
+	stat.blkp,
+	stat.orbp,
+	stat.drbp
+from mbb.games as g
+	left join mbb.school_divs as sdiv
+    	on
+        	g.season = sdiv.season
+            and g.school_id = sdiv.school_id
+    left join mbb.school_divs as odiv
+    	on
+        	g.season = odiv.season
+            and g.opp_id = odiv.school_id
+    left join mbb.school_dist as sdist
+    	on
+        	g.game_date = sdist.game_date
+            and g.school_id = sdist.school_id
+            and g.opp_id = sdist.opp_id
+    left join mbb.school_dist as odist
+    	on
+        	g.game_date = odist.game_date
+            and g.school_id = odist.opp_id
+            and g.opp_id = odist.school_id
+    left join mbb.tourn_games as strn
+		on
+			g.game_date = strn.game_date
+			and g.school_id = strn.school_id
+			and g.opp_id = strn.opp_id
+    left join mbb.tourn_games as otrn
+		on
+			g.game_date = otrn.game_date
+			and g.school_id = otrn.opp_id
+			and g.opp_id = otrn.school_id
+	left join mbb.games_stats as stat
+		on
+			g.game_date = stat.game_date
+			and g.school_id = stat.school_id
+			and g.opp_id = stat.opp_id
+--limit 100

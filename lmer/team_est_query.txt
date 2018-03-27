@@ -1,0 +1,112 @@
+select distinct *
+from (
+	select distinct
+        g.season,
+        g.game_date,
+		g.season_day,
+		g.game_date || '_' || g.low_id || '_' || g.high_id as game_id,
+        coalesce(trn.tourn,0) as tourn,
+        g.location,
+        g.ot,
+        g.low_id as off_id,
+        g.high_id as def_id,
+        coalesce(ldiv.division,4) as off_div,
+        coalesce(hdiv.division,4) as def_div,
+        case
+            when g.location = 'Home' then coalesce(dist.low_dist,0)
+            else dist.low_dist
+        end as off_dist,
+        case
+            when g.location = 'Away' then coalesce(dist.high_dist,0)
+            else dist.high_dist
+        end as def_dist,
+    	g.low_score as points,
+		stat.low_teff as teff,
+		stat.low_efg as efg,
+		stat.low_ptapm as ptapm,
+		stat.low_astp as astp,
+		stat.low_blkp as blkp,
+		stat.low_rbp as rbp
+    from mbb.games as g
+        left join mbb.school_divs as ldiv
+            on
+                g.season = ldiv.season
+                and g.low_id = ldiv.school_id
+        left join mbb.school_divs as hdiv
+            on
+                g.season = hdiv.season
+                and g.high_id = hdiv.school_id
+        left join mbb.school_dist as dist
+            on
+                g.game_date = dist.game_date
+                and g.low_id = dist.low_id
+                and g.high_id = dist.high_id
+		left join mbb.games_stats as stat
+			on
+				g.game_date = stat.game_date
+                and g.low_id = stat.low_id
+                and g.high_id = stat.high_id
+        left join mbb.tourn_games as trn
+            on
+                g.game_date = trn.game_date
+                and g.low_id = trn.low_id
+                and g.high_id = trn.high_id
+    union
+    select distinct
+        g.season,
+        g.game_date,
+		g.season_day,
+		g.game_date || '_' || g.low_id || '_' || g.high_id as game_id,
+        coalesce(trn.tourn,0) as tourn,
+    	case
+    		when g.location = 'Away' then 'Home'
+    		when g.location = 'Home' then 'Away'
+    		else g.location
+    	end,
+        g.ot,
+        g.high_id as off_id,
+        g.low_id as def_id,
+        coalesce(hdiv.division,4) as off_div,
+        coalesce(ldiv.division,4) as def_div,
+        case
+            when g.location = 'Away' then coalesce(dist.high_dist,0)
+            else dist.high_dist
+        end as off_dist,
+        case
+            when g.location = 'Home' then coalesce(dist.low_dist,0)
+            else dist.low_dist
+        end as def_dist,
+    	g.high_score as points,
+		stat.high_teff as teff,
+		stat.high_efg as efg,
+		stat.high_ptapm as ptapm,
+		stat.high_astp as astp,
+		stat.high_blkp as blkp,
+		stat.high_rbp as rbp
+    from mbb.games as g
+        left join mbb.school_divs as ldiv
+            on
+                g.season = ldiv.season
+                and g.low_id = ldiv.school_id
+        left join mbb.school_divs as hdiv
+            on
+                g.season = hdiv.season
+                and g.high_id = hdiv.school_id
+        left join mbb.school_dist as dist
+            on
+                g.game_date = dist.game_date
+                and g.low_id = dist.low_id
+                and g.high_id = dist.high_id
+		left join mbb.games_stats as stat
+			on
+				g.game_date = stat.game_date
+                and g.low_id = stat.low_id
+                and g.high_id = stat.high_id
+        left join mbb.tourn_games as trn
+            on
+                g.game_date = trn.game_date
+                and g.low_id = trn.low_id
+                and g.high_id = trn.high_id
+) as x
+--limit 100
+;
