@@ -13,6 +13,17 @@ from selenium.common.exceptions import TimeoutException, NoSuchElementException
 school_divs = pd.read_csv('ncaa_scrapers\\csv\\school_divs.csv', header = 0).sort_values('school_name')
 
 try:
+    coach_info = pd.read_csv('ncaa_scrapers\\csv\\coach_info.csv', header = 0)
+except IOError as error:
+    if str(error) == 'File ncaa_scrapers\csv\coach_info.csv does not exist':
+        with open('ncaa_scrapers\\csv\\coach_info.csv', 'wb') as csvfile:
+            csvwriter = csv.writer(csvfile, delimiter = ',', quotechar = '"', quoting = csv.QUOTE_MINIMAL)
+            csvwriter.writerow(['school_id','season','order','coach_id','name','games','alma_mater','grad_year'])
+        coach_info = pd.read_csv('ncaa_scrapers\\csv\\coach_info.csv', header = 0)
+    else:
+        raise error
+
+try:
     school_info = pd.read_csv('ncaa_scrapers\\csv\\school_info.csv', header = 0)
 except IOError as error:
     if str(error) == 'File ncaa_scrapers\csv\school_info.csv does not exist':
@@ -45,13 +56,14 @@ for school_id, i in zip(set(school_divs.school_id),range(len(set(school_divs.sch
     school_name = school_index.school_name.iloc[0]
     school_seasons = set(school_index.season)
     
+    coach_needed = school_seasons - set(coach_info.loc[coach_info.school_id == school_id].season)
     info_needed = school_seasons - set(school_info.loc[school_info.school_id == school_id].season)
     games_needed = school_seasons - set(games.loc[games.school_id == school_id].season)
     
-    if len(info_needed | games_needed) > 0:
+    if len(info_needed | games_needed | coach_needed) > 0:
         print(school_name + '\t\t' + str(i) + '/' + str(len(set(school_divs.school_id))))
     
-    for season in sorted(info_needed | games_needed):
+    for season in sorted(info_needed | games_needed | coach_needed):
         
         browser.get('http://web1.ncaa.org/stats/StatsSrv/careersearch')
         
@@ -86,6 +98,34 @@ for school_id, i in zip(set(school_divs.school_id),range(len(set(school_divs.sch
             WebDriverWait(browser, 30).until(EC.element_to_be_clickable((By.XPATH, results_page_xpath)))
         except TimeoutException:
             raise ValueError('team info issue')
+            
+        if season in coach_needed:
+            
+            soup = BeautifulSoup(browser.page_source, 'lxml')
+            coach_html = soup.find('b', text = 'Head Coach').find_parent('tbody')
+            
+            coaches = len(coach_html.find_all('b', text = 'Name:'))
+            for j in range(coaches):
+                coach_id = coach_html.find_all('b', text = 'Name:')[j].find_parent('td').find_next_sibling('td').find('a').get('href')
+                coach_id = int(re.compile('(?<=\()[0-9]+(?=\))').search(coach_id).group(0))
+                
+                coach_name = coach_html.find_all('b', text = 'Name:')[j].find_parent('td').find_next_sibling('td').find('a').text
+                coach_name = re.sub('\xa0',' ',coach_name)
+                
+                alma_mater = coach_html.find_all('b', text = 'Alma Mater')[j].find_parent('td').find_next_sibling('td').text.split(',')[0]
+                
+                grad_year = coach_html.find_all('b', text = 'Alma Mater')[j].find_parent('td').find_next_sibling('td').text
+                grad_year = int(re.sub('\xa0',' ',grad_year).split(', ')[1])
+                
+                if coaches == 1:
+                    games = None
+                else:
+                    record = coach_html.find_all('b', text = 'Record')[j].find_parent('td').find_next_sibling('td').text
+                    games = int(record.split('-')[0]) + int(record.split('-')[1])
+            
+            with open('ncaa_scrapers\\csv\\coach_info.csv', 'ab') as infocsv:
+                infowriter = csv.writer(infocsv, delimiter = ',', quotechar = '"', quoting = csv.QUOTE_MINIMAL)
+                infowriter.writerow([school_id,season,j,coach_id,coach_name,games,alma_mater,grad_year])
         
         if season in info_needed:
             
