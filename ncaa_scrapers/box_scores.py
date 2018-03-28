@@ -9,15 +9,15 @@ box_score_var = ['FGM','FGA','3FG','3FGA','FT','FTA','Pts','ORB','DRB','TRB','AS
 
 school_divs = pd.read_csv('ncaa_scrapers\\csv\\school_divs.csv', header = 0)
 
-for season in range(2010,school_divs.season.max() + 1):
-
+for season in range(2012,school_divs.season.max() + 1):
+    
     all_game_ids = pd.read_csv('ncaa_scrapers\\csv\\game_ids_' + str(season) + '.csv', header = 0)
     all_game_ids = set(x for x in set(all_game_ids.loc[pd.isnull(all_game_ids.game_id) == False].game_id))
     
     try:
         scraped_game_ids = set(pd.read_csv('ncaa_scrapers\\csv\\box_scores_' + str(season) + '.csv', header = 0).game_id)
     except IOError as error:
-        if str(error) == 'File ncaa_scrapers\\csv\\box_scores.csv does not exist':
+        if str(error) == 'File ncaa_scrapers\\csv\\box_scores_' + str(season) + '.csv does not exist':
             with open('ncaa_scrapers\\csv\\box_scores_' + str(season) + '.csv', 'wb') as csvfile:
                 csvwriter = csv.writer(csvfile, delimiter = ',', quotechar = '"', quoting = csv.QUOTE_MINIMAL)
                 csvwriter.writerow(['game_id','period','school_id','player_order','player_href','player_name','pos','min']
@@ -31,6 +31,7 @@ for season in range(2010,school_divs.season.max() + 1):
     
     i, start = 1, time()
     for game_id in game_ids_needed:
+        
         for period in [1,2]:
             soup = soupify('http://stats.ncaa.org/game/box_score/' + str(int(game_id)) + '?period_no=' + str(period))
             
@@ -79,6 +80,6 @@ for season in range(2010,school_divs.season.max() + 1):
         if i % 100 == 0:
             avg_time = (time() - start)/100
             start = time()
-            print('box_scores Time Remaining: ' + str(avg_time*(num_needed - i)/60) + ' min')
+            print(str(season) + ' box_scores Remaining: ' + str(num_needed - i) + ' ' + str(avg_time*(num_needed - i)/60) + ' min')
         
         i += 1
