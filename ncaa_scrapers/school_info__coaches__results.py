@@ -102,7 +102,7 @@ for school_id, i in zip(set(school_divs.school_id),range(len(set(school_divs.sch
         if season in coach_needed:
             
             soup = BeautifulSoup(browser.page_source, 'lxml')
-            coach_html = soup.find('b', text = 'Head Coach').find_parent('tbody')
+            coach_html = soup.find('b', text = re.compile('Head Coach(es)*')).find_parent('tbody')
             
             coaches = len(coach_html.find_all('b', text = 'Name:'))
             for j in range(coaches):
@@ -121,18 +121,21 @@ for school_id, i in zip(set(school_divs.school_id),range(len(set(school_divs.sch
                 
                 alma_mater = coach_html.find_all('b', text = 'Alma Mater')[j].find_parent('td').find_next_sibling('td').text.split(',')[0]
                 
-                grad_year = coach_html.find_all('b', text = 'Alma Mater')[j].find_parent('td').find_next_sibling('td').text
-                grad_year = int(re.sub('\xa0',' ',grad_year).split(', ')[1])
+                try:
+                    grad_year = coach_html.find_all('b', text = 'Alma Mater')[j].find_parent('td').find_next_sibling('td').text
+                    grad_year = int(re.sub('\xa0',' ',grad_year).split(', ')[1])
+                except IndexError:
+                    grad_year = None
                 
                 if coaches == 1:
-                    games = None
+                    games_coached = None
                 else:
                     record = coach_html.find_all('b', text = 'Record')[j].find_parent('td').find_next_sibling('td').text
-                    games = int(record.split('-')[0]) + int(record.split('-')[1])
+                    games_coached = int(record.split('-')[0]) + int(record.split('-')[1])
             
             with open('ncaa_scrapers\\csv\\coach_info.csv', 'ab') as infocsv:
                 infowriter = csv.writer(infocsv, delimiter = ',', quotechar = '"', quoting = csv.QUOTE_MINIMAL)
-                infowriter.writerow([school_id,season,j,coach_id,coach_name,games,alma_mater,grad_year])
+                infowriter.writerow([school_id,season,j,coach_id,coach_name,games_coached,alma_mater,grad_year])
         
         if season in info_needed:
             
