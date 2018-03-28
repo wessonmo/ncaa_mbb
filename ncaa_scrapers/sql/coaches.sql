@@ -6,12 +6,12 @@ create table ncaa.coaches (
 	season		int,
 	school_id	int,
 	"order"		int,
-	coach_id	int,
+	coach_id	float,
 	coach_name	text,
 	games		float,
 	alma_mater	text,
-	grad_year	int,
-	primary key (season, school_id, coach_id)
+	grad_year	float,
+	primary key (season, school_id, coach_name)
 );
 
 truncate table ncaa.coaches;
