@@ -78,8 +78,7 @@ for season in range(2012,school_divs.season.max() + 1):
                     box.to_csv(hrefscsv, header = False, index = False)
         
         if i % 100 == 0:
-            avg_time = (time() - start)/100
-            start = time()
+            avg_time = (time() - start)/i
             print(str(season) + ' box_scores Remaining: ' + str(num_needed - i) + ' ' + str(avg_time*(num_needed - i)/60) + ' min')
         
         i += 1
