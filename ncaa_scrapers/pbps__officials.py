@@ -61,7 +61,7 @@ for season in range(2012,school_divs.season.max() + 1):
                                 .find_all('tr', class_ = lambda x: x != 'grey_heading')
                 except AttributeError:
                     if period == 1:
-                        with open('ncaa_scrapers\\csv\\pbp_' + str(season) + '.csv', 'wb') as csvfile:
+                        with open('ncaa_scrapers\\csv\\pbp_' + str(season) + '.csv', 'ab') as csvfile:
                             csvwriter = csv.writer(csvfile, delimiter = ',', quotechar = '"', quoting = csv.QUOTE_MINIMAL)
                             csvwriter.writerow([game_id,None,None,None,None,None])
                     break
