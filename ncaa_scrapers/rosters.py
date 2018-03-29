@@ -3,6 +3,7 @@ import csv
 import pandas as pd
 from collections import OrderedDict
 from time import time
+import re
 
 school_divs = pd.read_csv('ncaa_scrapers\\csv\\school_divs.csv', header = 0)
 
@@ -34,15 +35,19 @@ for season in range(2012,school_divs.season.max() + 1):
         
         data['season'] = [row.season]*len(players)
         data['school_id'] = [row.school_id]*len(players)
-        data['jersey'] = [int(x.find_all('td')[0].text) if x.find_all('td')[0].text != '' else None for x in players]
+        data['jersey'] = [int(re.compile('[0-9]+').search(x.find_all('td')[0].text).group(0))
+                            if re.compile('[0-9]+').search(x.find_all('td')[0].text) else None for x in players]
         data['player_id'] = [int(x.find_all('td')[1].find('a').get('href').split('=')[-1]) if x.find_all('td')[1].find('a') else None
                                 for x in players]
-        data['player_name'] = [x.find_all('td')[1].text for x in players]
+        data['player_name'] = [re.sub(r'[^\x00-\x7F]+','',x.find_all('td')[1].text) for x in players]
         data['pos'] = [x.find_all('td')[2].text if x.find_all('td')[2].text != '' else None for x in players]
         data['height'] = [x.find_all('td')[3].text if x.find_all('td')[3].text != '' else None  for x in players]
         data['class'] = [x.find_all('td')[4].text if x.find_all('td')[4].text != '' else None  for x in players]
         
         roster = pd.DataFrame(data)
+        
+        if len(roster) == 0:
+            roster.loc[0] = [row.season,row.school_id,None,None,None,None,None,None]
         
         with open('ncaa_scrapers\\csv\\rosters_' + str(season) + '.csv', 'ab') as hrefscsv:
             roster.to_csv(hrefscsv, header = False, index = False)
@@ -50,8 +55,7 @@ for season in range(2012,school_divs.season.max() + 1):
         print(row.season, row.school_id)
             
         if i % 100 == 0:
-            avg_time = (time() - start)/100
-            start = time()
-            print('rosters Time Remaining: ' + str(avg_time*(num_needed - i)/60) + ' min')
+            avg_time = (time() - start)/i
+            print(str(season) + ' rosters Remaining: ' + str(num_needed - i) + ' ' + str(avg_time*(num_needed - i)/60) + ' min')
         
         i += 1
