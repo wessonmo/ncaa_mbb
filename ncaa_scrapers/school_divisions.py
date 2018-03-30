@@ -1,11 +1,10 @@
 from ncaa_scrapers.functions.soupify import soupify
 import pandas as pd
 import csv
-from datetime import date
 from collections import OrderedDict
 
 first_season = 2009
-last_season = date.today().year if date.today().timetuple().tm_yday >= 72 else date.today().year - 1
+last_season = 2017
 
 try:
     school_divs = pd.read_csv('ncaa_scrapers\\csv\\school_divs.csv', header = 0)
