@@ -29,7 +29,7 @@ for season in range(2012,school_divs.season.max() + 1):
         if str(error) == 'File ncaa_scrapers\\csv\\officials_' + str(season) + '.csv does not exist':
             with open('ncaa_scrapers\\csv\\officials_' + str(season) + '.csv', 'wb') as csvfile:
                 csvwriter = csv.writer(csvfile, delimiter = ',', quotechar = '"', quoting = csv.QUOTE_MINIMAL)
-                csvwriter.writerow(['game_id','official'])
+                csvwriter.writerow(['game_id','order','official'])
             scraped_official = set()
         else:
             raise error
@@ -44,14 +44,27 @@ for season in range(2012,school_divs.season.max() + 1):
         
         if game_id not in scraped_official:
             try:
-                officials = re.sub(', Jr.',' Jr',soup.find('td', text = 'Officials:').find_next_sibling('td').text.strip()).split(', ')
+                off_text = soup.find('td', text = 'Officials:').find_next_sibling('td').text.strip()
+                if re.compile('[a-z]').search(off_text):
+                    off_scrub = re.sub('(,)* Jr(\.)*', ' Jr', off_text, flags = re.I)
+                    off_scrub = re.sub('(((^(u|r(ef)*))|cc|(u|o)([0-9]|\@)|alt(\.)*| a)( )*(-|:)( )*)' 
+                                        + '|(\-| )(u|o|r)([0-9]|\@)'
+                                        + '|(^r|(u|o|r)([0-9]|\@))( )'
+                                        + '|( )*(\(|\<|\[).*(\)|\>|\])'
+                                        + '|( )*-( )*((u|o|r|a(lt(\.)*))([0-9]|\@)*)$'
+                                       ,'', off_scrub, flags = re.I)
+                    off_scrub = re.sub('\\\| ".*"|( )*[0-9]+( )*','',off_scrub, flags = re.I)
+                    
+                    officials = re.sub('( )*(:|,( &)*|;|\||/| (and |&|\-)|(\s){2,})( )*', '&&', off_scrub, flags = re.I).split('&&')
+                else:
+                    raise AttributeError
             except AttributeError:
                 officials = [None]
                 
-            for official in officials:
+            for official,j in zip(officials[:3],range(3)):
                 with open('ncaa_scrapers\\csv\\officials_' + str(season) + '.csv', 'ab') as csvfile:
                     csvwriter = csv.writer(csvfile, delimiter = ',', quotechar = '"', quoting = csv.QUOTE_MINIMAL)
-                    csvwriter.writerow([game_id,official])
+                    csvwriter.writerow([game_id,j,official])
         
         if game_id not in scraped_pbp:
             period = 1
