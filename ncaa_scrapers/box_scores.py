@@ -44,7 +44,7 @@ for season in range(2012,school_divs.season.max() + 1):
             except IndexError:
                 with open('ncaa_scrapers\\csv\\box_scores_' + str(season) + '.csv', 'ab') as hrefscsv:
                     hrefwriter = csv.writer(hrefscsv, delimiter = ',', quotechar = '"', quoting = csv.QUOTE_MINIMAL)
-                    hrefwriter.writerow([game_id,period] + [None]*20)
+                    hrefwriter.writerow([game_id,period] + [None]*21)
                 break
             
             for box_score_soup, school_id in zip(box_scores, school_ids):
@@ -53,7 +53,7 @@ for season in range(2012,school_divs.season.max() + 1):
                 if len(players) < 5:
                     with open('ncaa_scrapers\\csv\\box_scores_' + str(season) + '.csv', 'ab') as hrefscsv:
                         hrefwriter = csv.writer(hrefscsv, delimiter = ',', quotechar = '"', quoting = csv.QUOTE_MINIMAL)
-                        hrefwriter.writerow([game_id,period] + [None]*20)
+                        hrefwriter.writerow([game_id,period] + [None]*21)
                     continue
                 
                 data = OrderedDict()
