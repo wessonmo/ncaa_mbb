@@ -13,13 +13,13 @@ from selenium.common.exceptions import TimeoutException, NoSuchElementException
 school_divs = pd.read_csv('ncaa_scrapers\\csv\\school_divs.csv', header = 0).sort_values('school_name')
 
 try:
-    coach_info = pd.read_csv('ncaa_scrapers\\csv\\coach_info.csv', header = 0)
+    coach_info = pd.read_csv('ncaa_scrapers\\csv\\coaches.csv', header = 0)
 except IOError as error:
-    if str(error) == 'File ncaa_scrapers\csv\coach_info.csv does not exist':
-        with open('ncaa_scrapers\\csv\\coach_info.csv', 'wb') as csvfile:
+    if str(error) == 'File ncaa_scrapers\csv\coaches.csv does not exist':
+        with open('ncaa_scrapers\\csv\\coaches.csv', 'wb') as csvfile:
             csvwriter = csv.writer(csvfile, delimiter = ',', quotechar = '"', quoting = csv.QUOTE_MINIMAL)
             csvwriter.writerow(['school_id','season','order','coach_id','name','games','alma_mater','grad_year'])
-        coach_info = pd.read_csv('ncaa_scrapers\\csv\\coach_info.csv', header = 0)
+        coach_info = pd.read_csv('ncaa_scrapers\\csv\\coaches.csv', header = 0)
     else:
         raise error
 
@@ -133,7 +133,7 @@ for school_id, i in zip(set(school_divs.school_id),range(len(set(school_divs.sch
                     record = coach_html.find_all('b', text = 'Record')[j].find_parent('td').find_next_sibling('td').text
                     games_coached = int(record.split('-')[0]) + int(record.split('-')[1])
             
-            with open('ncaa_scrapers\\csv\\coach_info.csv', 'ab') as infocsv:
+            with open('ncaa_scrapers\\csv\\coaches.csv', 'ab') as infocsv:
                 infowriter = csv.writer(infocsv, delimiter = ',', quotechar = '"', quoting = csv.QUOTE_MINIMAL)
                 infowriter.writerow([school_id,season,j,coach_id,coach_name,games_coached,alma_mater,grad_year])
         
