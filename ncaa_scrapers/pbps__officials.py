@@ -5,6 +5,8 @@ from collections import OrderedDict
 from time import time
 import re
 
+ref_abv_re = re.compile('^(r(ef(eree)*)*|a((lt)*\.)*|u(mp(ire)*)*(s)*|o)[0-9]*$', re.I)
+
 school_divs = pd.read_csv('ncaa_scrapers\\csv\\school_divs.csv', header = 0)
 
 for season in range(2012,school_divs.season.max() + 1):
@@ -29,7 +31,7 @@ for season in range(2012,school_divs.season.max() + 1):
         if str(error) == 'File ncaa_scrapers\\csv\\officials_' + str(season) + '.csv does not exist':
             with open('ncaa_scrapers\\csv\\officials_' + str(season) + '.csv', 'wb') as csvfile:
                 csvwriter = csv.writer(csvfile, delimiter = ',', quotechar = '"', quoting = csv.QUOTE_MINIMAL)
-                csvwriter.writerow(['game_id','order','official'])
+                csvwriter.writerow(['game_id','officials'])
             scraped_official = set()
         else:
             raise error
@@ -44,27 +46,45 @@ for season in range(2012,school_divs.season.max() + 1):
         
         if game_id not in scraped_official:
             try:
-                off_text = soup.find('td', text = 'Officials:').find_next_sibling('td').text.strip()
-                if re.compile('[a-z]').search(off_text):
-                    off_scrub = re.sub('(,)* Jr(\.)*', ' Jr', off_text, flags = re.I)
-                    off_scrub = re.sub('(((^(u|r(ef)*))|cc|(u|o)([0-9]|\@)|alt(\.)*| a)( )*(-|:)( )*)' 
-                                        + '|(\-| )(u|o|r)([0-9]|\@)'
-                                        + '|(^r|(u|o|r)([0-9]|\@))( )'
-                                        + '|( )*(\(|\<|\[).*(\)|\>|\])'
-                                        + '|( )*-( )*((u|o|r|a(lt(\.)*))([0-9]|\@)*)$'
-                                       ,'', off_scrub, flags = re.I)
-                    off_scrub = re.sub('\\\| ".*"|( )*[0-9]+( )*','',off_scrub, flags = re.I)
-                    
-                    officials = re.sub('( )*(:|,( &)*|;|\||/| (and |&|\-)|(\s){2,})( )*', '&&', off_scrub, flags = re.I).split('&&')
-                else:
-                    raise AttributeError
-            except AttributeError:
-                officials = [None]
+                officials = soup.find('td', text = 'Officials:').find_next_sibling('td').text.strip()
                 
-            for official,j in zip(officials[:3],range(3)):
-                with open('ncaa_scrapers\\csv\\officials_' + str(season) + '.csv', 'ab') as csvfile:
-                    csvwriter = csv.writer(csvfile, delimiter = ',', quotechar = '"', quoting = csv.QUOTE_MINIMAL)
-                    csvwriter.writerow([game_id,j,official])
+#                re.compile('[a-zA-Z]{5,}').search(off_text).group(0)
+#                
+#                name_suffix = re.sub(',( )*(?=(j|s)r)', ' ', off_text, flags = re.I)
+#                enclose_text = re.sub('(\(|\<|\[).{,5}(\)|\>|\])', '  ', name_suffix, flags = re.I).strip()
+#                
+#                off_split = re.sub('( )*(:|,|&|;|\||/| and |  )( )*', '&&', enclose_text, flags = re.I).split('&&')
+#                
+#                officials = ['-'.join([x for x in off.split('-') if ref_abv_re.search(x) == None])
+#                                for off in off_split if ref_abv_re.search(off) == None]
+#                officials = [None] if officials == [] else officials
+#                    for off in off_split:
+#                        print('-'.join([x for x in off.split('-') if re.compile(
+#                                '^(r(ef(eree)*)*|a((lt)*\.)*|u(mp(ire)*)*(s)*|o)[0-9]*$'
+#                                , re.I).search(x) == None]))
+#                    
+#                    [y for x in off_split for y in x.split('-')]
+#                    
+#                    off_scrub = 
+                
+#                    off_scrub = [re.sub('(((^(u|r(ef)*))|cc|(u|o)([0-9]|\@)|alt(\.)*| a)( )*(-|:)( )*)' 
+#                                        + '|(\-| )(u|o|r)([0-9]|\@)'
+#                                        + '|(^r|(u|o|r)([0-9]|\@))( )'
+#                                        + '|( )*(\(|\<|\[).{,5}(\)|\>|\])'
+#                                        + '|( )*-( )*((u|o|r|a(lt(\.)*))([0-9]|\@)*)$'
+#                                       ,'', x, flags = re.I) for x in off_split]
+#                    off_scrub = re.sub('\\\| ".*"|( )*[0-9]+( )*','',off_scrub, flags = re.I)
+#                    
+#                    officials = re.sub('( )*(:|,( &)*|;|\||/| (and |&|\-)|(\s){2,})( )*', '&&', off_scrub, flags = re.I).split('&&')
+#                else:
+#                    raise AttributeError
+            except AttributeError:
+                officials = None
+                
+#            for official,j in zip(officials,range(len(officials))):
+            with open('ncaa_scrapers\\csv\\officials_' + str(season) + '.csv', 'ab') as csvfile:
+                csvwriter = csv.writer(csvfile, delimiter = ',', quotechar = '"', quoting = csv.QUOTE_MINIMAL)
+                csvwriter.writerow([game_id,officials])
         
         if game_id not in scraped_pbp:
             period = 1
