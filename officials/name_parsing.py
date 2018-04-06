@@ -1,5 +1,7 @@
 import pandas as pd
 import re
+from fuzzywuzzy import fuzz
+from fuzzywuzzy import process
 
 ref = '(r(ef(\.)*(eree)*)*(s)*[0-9@!]*(?![a-z])+)'
 ump = '(u(mp(\.)*(ire)*)*(s|\-)*[0-9@!]*)'
@@ -74,5 +76,18 @@ punc = '([^a-z \-]+)|((?<![a-z])\-)|(\-(?![a-z]))'
     
 clean.loc[:,'official'] = clean.official.apply(lambda x: re.sub(punc, '', x).strip())
 
+agg = clean.groupby('official').agg('count').sort_values('game_id', ascending = False).reset_index()
+
+multiple = set(agg.loc[agg.official.apply(lambda x: len(re.findall(name_str, x)) > 2)].official)
+single = set(agg.loc[agg.official.apply(lambda x: len(x) >= 6)
+    & agg.official.apply(lambda x: len(re.findall(name_str, x)) > 0)
+    & agg.official.apply(lambda x: len(re.findall(name_str, x)) <= 2)].official)
+
+for string in multiple:
+    match = process.extractOne(string, single, scorer = fuzz.token_set_ratio)
+    if match[1] > 90:
+        pos = float(string.index(match[0]))/len(string)
+        sec_strings = [x.strip() for x in string.split(match[0])]
+    
 with open('officials\\csv\\parsed_names.csv', 'wb') as csvfile:
     clean.drop_duplicates().to_csv(csvfile, header = True, index = False)
