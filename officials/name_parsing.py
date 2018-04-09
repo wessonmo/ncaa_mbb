@@ -2,92 +2,109 @@ import pandas as pd
 import re
 from fuzzywuzzy import fuzz
 from fuzzywuzzy import process
+from collections import OrderedDict
+from  __builtin__ import any
 
-ref = '(r(ef(\.)*(eree)*)*(s)*[0-9@!]*(?![a-z])+)'
-ump = '(u(mp(\.)*(ire)*)*(s|\-)*[0-9@!]*)'
-off = '(o(ff(\.)*(icial)*)*(s)*[0-9@!]*)'
-alt = '(a(lt(\.)*(ternative)*)*(s)*[0-9@!]*)'
-ref_str = '(^|\-|\s)(' + '|'.join([ref,ump,off,alt]) + ')(?=((\.)*\-|\s|:|,|;|$))'
-
-enc_str = '(\(|<|\[|").*?(\)|>|\]|")+'
-
-html_str = '(\\\\).*(\=)'
-
-alt2 = '(^a(lt(\.)*)*(\-|\s))|((\-|\s)a(lt(\.)*)*$)'
-ump2 = '(\(|\s)*u[0-9](_|\))*((?=$)|(?=\s))'
-
-name_suffix = ', *((?=(j|s)r)|(?=ii)|(?=iii))(?! Neid)'
-
-comb = pd.DataFrame()
+raw_df = pd.DataFrame()
 
 for season in range(2012,2019):
-    df = pd.read_csv('ncaa_scrapers\\csv\\officials_' + str(season) + '.csv', header = 0)
+    seas_df = pd.read_csv('ncaa_scrapers\\csv\\officials_' + str(season) + '.csv', header = 0)
     
-    comb = pd.concat([comb,df.loc[pd.isnull(df.officials) == False]]).sort_values(['game_id','officials']).reset_index(drop = True)
+    seas_df.loc[:,'officials'] = seas_df.officials.apply(lambda x: '' if pd.isnull(x) else x)
+    seas_df.loc[:,'officials'] = seas_df.officials.apply(lambda x: None
+          if (re.compile('[a-z]{5,}', re.I).search(x) == None) or re.compile('none ', re.I).search(x) else x)
+    
+    dt = pd.read_csv('ncaa_scrapers\\csv\\game_ids_' + str(season) + '.csv', header = 0)[['game_id','game_date']].drop_duplicates()
+    dt.loc[:,'game_date'] = pd.to_datetime(dt.game_date)
+    
+    df = pd.merge(seas_df, dt, how = 'left', on = 'game_id')
+    
+    raw_df = pd.concat([raw_df,df.loc[pd.isnull(df.officials) == False]]).sort_values(['game_date','game_id']).reset_index(drop = True)
 
-comb.loc[:,'off_scrub'] = comb.officials.apply(lambda x: re.sub('|'.join([ref_str,enc_str,html_str]), ';', x.lower()))
-comb.loc[:,'off_scrub'] = comb.off_scrub.apply(lambda x: re.sub('\s+', ' ', x))
-comb.loc[:,'off_scrub'] = comb.off_scrub.apply(lambda x: re.sub(name_suffix,' ',x))
-comb.loc[:,'off_scrub'] = comb.off_scrub.apply(lambda x: re.sub('((?<=^[a-z])|(?<=( |,)[a-z]))\.(?=[a-z]{4,})','. ',x))
-comb.loc[:,'off_scrub'] = comb.off_scrub.apply(lambda x: re.sub(', (?!and )(?!& )',',',x))
+name_suffix = ', *((?=[js]r)|(?=ii)|(?=iii))(?! Neid)'
+    
+raw_df.loc[:,'off_scrub'] = raw_df.officials.apply(lambda x: re.sub(name_suffix,' ',x.lower()))
 
 #[x for x in set(''.join(list(comb.loc[pd.isnull(comb.off_scrub) == False].off_scrub))) if re.compile('[a-z0-9]', re.I).search(x) == None]
 #
-#comb.loc[comb.off_scrub.str.contains(',&', regex = True)]
+#comb2.loc[comb2.officials.str.contains('(?<=\s)\s+', regex = True)]
 
-sep = ' and | \' |\\n|&|(?<![a-z])-(?![a-z])|,|/|;|\||:'
-name_str = ' (?!(jr|sr|ii))(?!(van|von) )(?!(mc|st) )'
+sep = '\n[ ]+\n[ ]+| and | \' |\\n|&|(?<![a-z])-|,|/|;|\||:'
 
-clean = pd.DataFrame(columns = ['game_id','official'])
-for index, row in comb.loc[comb.officials.str.contains('[a-z]{5,}', regex = True),['game_id','off_scrub']].iterrows():
-#    if row.game_id == 4286046:
-#        break
-    officials = [re.sub('|'.join([alt2,ump2]),'',x).strip() for x in re.split(sep, row.off_scrub)
-                    if (re.compile('[a-z]', re.I).search(x))]
+ref = '(r(ef(\.)*(eree)*)*[s0-9@!]*(?![a-z])+)'
+ump = '(u(mp(\.)*(ire)*)*[\-s0-9@!]*)'
+off = '(o(ff(\.)*(icial)*)*[s0-9@!]*)'
+alt = '(a(lt(\.)*(ternative)*)*[s0-9@!]*)'
+
+pre = '^\(*(' + '|'.join([ref,ump,off,alt]) + ')\)*[\-\s\)]+'
+post = '[\-\s\(]+\(*(' + '|'.join([ref,ump,off,alt]) + ')\.*[\)_]*$'
+
+punc = '([^a-z \-]+)|((?<![a-z])\-)|(\-(?![a-z]))|(?<=\s)\s+'
+
+clean_df = pd.DataFrame(columns = ['game_id','game_date','order','official'])
+for index, row in raw_df[['game_id','game_date','off_scrub']].iterrows():
+    officials = [re.sub(pre +'|' + post + '|\s\".*?\"','',x.strip()) for x in
+                 re.split(sep + '|[\\[\(\<].*?[\\]\)\>]', row.off_scrub)
+                 if (len(re.findall(' ', x.strip())) > 0) and (re.compile(' [a-z]\.*$').search(x.strip()) == None)]
     
-    if (len(officials) == 1) and len(re.findall(name_str, officials[0])) in [5,7]:
-        names = [x for x in re.split(name_str,officials[0]) if x not in ['',None]]
-        
-        officials = [' '.join(names[0:2]).strip(),' '.join(names[2:4]).strip(),' '.join(names[4:6]).strip()]\
-            + ([] if len(re.findall(name_str, officials[0])) == 5 else [' '.join(names[6:8]).strip()])
-            
-    multiple = [x for x in officials if len(re.findall(name_str, x)) == 3]
-    if len(multiple) > 0:
-        names = [y for y in re.split(name_str,x) for x in multiple if y not in ['',None]]
-        
-        for string in multiple:
-            idx = officials.index(string)
-            officials[idx:idx + 1] = ' '.join(names[0:2]).strip(),' '.join(names[2:4]).strip()
+    if re.compile(punc).search(''.join(officials)):
+        officials = [re.sub(punc, '', x).strip() for x in officials]
     
-    clean = pd.concat([clean, pd.DataFrame(data = {'game_id': [row.game_id]*len(officials[:3]),
-                                                   'official': officials[:3]})], ignore_index = True)
+    clean_df = pd.concat([clean_df, pd.DataFrame(data = {'game_id': [row.game_id]*len(officials[:3]),
+                                                         'game_date': [row.game_date]*len(officials[:3]),
+                                                         'order': range(len(officials[:3])),
+                                                         'official': officials[:3]})], ignore_index = True)
 
 #[x for x in set(''.join(list(clean.loc[pd.isnull(clean.official) == False].official))) if re.compile('[a-z]', re.I).search(x) == None]
 #
-#clean.loc[clean.official.str.contains('\-')]
-#
-#
-#clean.loc[:,'len'] = clean.official.apply(lambda x: len(x))
-#clean.loc[:,'spaces'] = clean.official.apply(lambda x: len(re.findall(name_str, x)))
-#
-#clean.loc[(clean.official.str.contains('\.| ', regex = True)) & (clean.spaces.isin([1,3,5]))].sort_values('len', ascending = False).head(15)
-    
-punc = '([^a-z \-]+)|((?<![a-z])\-)|(\-(?![a-z]))'
-    
-clean.loc[:,'official'] = clean.official.apply(lambda x: re.sub(punc, '', x).strip())
+#clean.loc[clean.official.str.contains('lonnie', regex = True)]
 
-agg = clean.groupby('official').agg('count').sort_values('game_id', ascending = False).reset_index()
+name_str = ' (?!(jr|sr|ii))(?!(van|von) )(?!(mc|st) )(?!de la )'
 
-multiple = set(agg.loc[agg.official.apply(lambda x: len(re.findall(name_str, x)) > 2)].official)
-single = set(agg.loc[agg.official.apply(lambda x: len(x) >= 6)
-    & agg.official.apply(lambda x: len(re.findall(name_str, x)) > 0)
-    & agg.official.apply(lambda x: len(re.findall(name_str, x)) <= 2)].official)
-
-for string in multiple:
-    match = process.extractOne(string, single, scorer = fuzz.token_set_ratio)
-    if match[1] > 90:
-        pos = float(string.index(match[0]))/len(string)
-        sec_strings = [x.strip() for x in string.split(match[0])]
+for i in range(2):
     
+    multiple = set(clean_df.loc[clean_df.official.apply(lambda x: len(re.findall(name_str, x)) > 2)].official)
+    single = set(clean_df.loc[clean_df.official.apply(lambda x: len(x) >= 6)
+        & clean_df.official.apply(lambda x: len(re.findall(name_str, x)) in [1,2])
+        & clean_df.official.apply(lambda x: re.compile('^[a-z] [a-z\-]+$').search(x) == None)].official)
+    
+    for string in multiple:
+        matches = [x[0] for x in process.extractBests(string, single, scorer = fuzz.partial_ratio, score_cutoff = 100)]
+        matches = [x for x in matches if not any(x in y for y in set(matches) - set([x]))]
+        
+        if len(matches) > 0:
+            new_string = string
+            new_names = []
+            
+            for name in matches:
+                string_start = string.find(name)
+                string_end = string.find(name) + len(name)
+                
+                if 0 in [string_start, string_end]:
+                    new_string = re.sub(name,'',new_string).strip()
+                else:
+                    new_string = re.sub(name,'&&',new_string).strip()
+            
+            new_names = matches + ([x.strip() for x in new_string.split('&&') if x.strip() != ''] if new_string != '' else [])
+            new_names = [re.sub(pre +'|' + post,'',x.strip()) for x in new_names if re.sub(pre +'|' + post,'',x.strip()) != '']
+            
+            new_names_pos = [string.index(x) for x in new_names]
+            new_names = [x for x in map(new_names.__getitem__, [new_names_pos.index(x) for x in sorted(new_names_pos)])
+                            if re.compile('^[a-z\-]+$').search(x) == None]
+            
+            for index, row in clean_df.loc[clean_df.official == string].iterrows():
+                clean_df.drop(index, inplace = True)
+                
+                data = OrderedDict()
+                
+                data['game_id'] = [row.game_id]*len(new_names)
+                data['game_date'] = [row.game_date]*len(new_names)
+                data['order'] = [int(row['order'] + x) for x in range(len(new_names))]
+                data['official'] = new_names
+                
+                clean_df = pd.concat([clean_df,pd.DataFrame(data)]).sort_values(['game_date','game_id','order']).reset_index(drop = True)
+                    
+            print(string, new_names)
+        
 with open('officials\\csv\\parsed_names.csv', 'wb') as csvfile:
-    clean.drop_duplicates().to_csv(csvfile, header = True, index = False)
+    clean_df.to_csv(csvfile, header = True, index = False)
