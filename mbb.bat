@@ -23,11 +23,22 @@ if not defined check (createdb -U postgres ncaa_mbb)
 
 psql -U postgres -d ncaa_mbb -qc "drop schema if exists ncaa cascade; create schema ncaa;"
 
-psql -U postgres -d ncaa_mbb -v folder_path=%~dp0\ncaa_scrapers\csv -qf ncaa_scrapers\sql\school_divs.sql
-psql -U postgres -d ncaa_mbb -v folder_path=%~dp0\ncaa_scrapers\csv -qf ncaa_scrapers\sql\school_info.sql
-psql -U postgres -d ncaa_mbb -v folder_path=%~dp0\ncaa_scrapers\csv -qf ncaa_scrapers\sql\game_ids.sql
-psql -U postgres -d ncaa_mbb -v folder_path=%~dp0\ncaa_scrapers\csv -qf ncaa_scrapers\sql\results.sql
-psql -U postgres -d ncaa_mbb -v folder_path=%~dp0\ncaa_scrapers\csv -qf ncaa_scrapers\sql\box_scores.sql
+REM psql -U postgres -d ncaa_mbb -v folder_path=%~dp0\ncaa_scrapers\csv -qf ncaa_scrapers\sql\school_divs.sql
+REM psql -U postgres -d ncaa_mbb -v folder_path=%~dp0\ncaa_scrapers\csv -qf ncaa_scrapers\sql\school_info.sql
+REM psql -U postgres -d ncaa_mbb -v folder_path=%~dp0\ncaa_scrapers\csv -qf ncaa_scrapers\sql\results.sql
+
+
+
+
+for /l %%x in (2012,1,2017) do (
+	REM psql -U postgres -d ncaa_mbb -v folder_path=%~dp0\ncaa_scrapers\csv -v yr=%%x -qf ncaa_scrapers\sql\game_ids.sql
+	REM psql -U postgres -d ncaa_mbb -v folder_path=%~dp0\ncaa_scrapers\csv -v yr=%%x -qf ncaa_scrapers\sql\box_scores.sql
+	
+)
+
+REM psql -U postgres -d ncaa_mbb -c "alter table ncaa.game_ids add primary key (school_id, game_id);"
+REM psql -U postgres -d ncaa_mbb -c "alter table ncaa.box_scores add primary key (game_id, period, school_id, player_order);"
+
 
 REM psql -U postgres -d ncaa_mbb -qc "drop schema if exists geo cascade; create schema geo;"
 
