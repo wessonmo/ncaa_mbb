@@ -2,7 +2,7 @@ begin;
 
 drop table if exists ncaa.box_scores;
 create table ncaa.box_scores (
-	game_id			int,
+	game_id			float,
 	period			float,
 	school_id		float,
 	player_order	float,
@@ -29,11 +29,9 @@ create table ncaa.box_scores (
 
 truncate table ncaa.box_scores;
 
-\set csv_path '\'' :folder_path '\\box_scores.csv\''
+\set csv_path '\'' :folder_path '\\box_scores_' :yr '.csv\''
 copy ncaa.box_scores from :csv_path with header delimiter as ',' csv quote as '"';
 
 delete from ncaa.box_scores where school_id is null;
-
-alter table ncaa.box_scores add primary key (game_id, period, school_id, player_order);
 
 commit;
