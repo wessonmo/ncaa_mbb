@@ -4,7 +4,7 @@ import csv
 from collections import OrderedDict
 
 first_season = 2009
-last_season = 2017
+last_season = 2018
 
 try:
     school_divs = pd.read_csv('ncaa_scrapers\\csv\\school_divs.csv', header = 0)
@@ -37,7 +37,7 @@ for season, division in sorted(seasons_to_scrape):
     data = OrderedDict()
     
     data['season'] = [season]*len(atags)
-    data['school_id'] = [int(x.get('href').split('/')[-1]) for x in atags]
+    data['season_id'] = [int(x.get('href').split('/')[-1]) for x in atags]
     data['school_id'] = [int(x.get('href').split('/')[2]) for x in atags]
     data['school_name'] = [x.text for x in atags]
     data['division'] = [division]*len(atags)
