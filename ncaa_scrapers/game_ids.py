@@ -55,11 +55,8 @@ for season in range(2012,school_divs.season.max() + 1):
         with open('ncaa_scrapers\\csv\\game_ids_' + str(season) + '.csv', 'ab') as hrefscsv:
             games_df.to_csv(hrefscsv, header = False, index = False)
             
-        print(row.season, row.school_id)
-            
-        if i % 100 == 0:
-            avg_time = (time() - start)/100
-            start = time()
-            print('game_id Time Remaining: ' + str(avg_time*(num_needed - i)/60) + ' min')
+        if (i % 100 == 0) or (i == 1):
+            avg_time = (time() - start)/i
+            print(str(season) + ' game_ids Remaining: ' + str(num_needed - i) + ' ' + str(int(avg_time*(num_needed - i)/60)) + ' min')
         
         i += 1
