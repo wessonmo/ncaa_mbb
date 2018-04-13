@@ -42,9 +42,6 @@ for season in range(2012,school_divs.season.max() + 1):
         
         soup = soupify('http://stats.ncaa.org/game/play_by_play/' + str(int(game_id)))
         
-        teams = soup.find('td', text = 'Total').find_parent('table').find_all('tr')[1:]
-        team_ids = [int(re.compile('(?<=team\/)[0-9]+(?=\/)').search(x.find('a').get('href')).group(0)) for x in teams]
-        
         if game_id not in scraped_official:
             try:
                 officials = soup.find('td', text = 'Officials:').find_next_sibling('td').text.strip()
@@ -61,6 +58,14 @@ for season in range(2012,school_divs.season.max() + 1):
                 try:
                     events = soup.find('a',{'id': 'pd' + str(period)}).find_parent('table').find_next_sibling('table')\
                                 .find_all('tr', class_ = lambda x: x != 'grey_heading')
+                                
+                    teams = soup.find('td', text = 'Total').find_parent('table').find_all('tr')[1:]
+                    team_ids = [int(re.compile('(?<=team\/)[0-9]+(?=\/)').search(x.find('a').get('href')).group(0))
+                         if x.find('a') != None else None for x in teams]
+                    
+                    if team_ids == [None,None]:
+                        raise AttributeError
+                        
                 except AttributeError:
                     if period == 1:
                         with open('ncaa_scrapers\\csv\\pbps_' + str(season) + '.csv', 'ab') as csvfile:
