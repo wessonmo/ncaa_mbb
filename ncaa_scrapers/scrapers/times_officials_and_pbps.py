@@ -44,13 +44,20 @@ def scraper():
         
         soup = soupify(url)
         
+        if re.compile('something went wrong').search(soup.text):
+            
+            url = 'http://stats.ncaa.org/game/box_score/{0}'.format(row.game_id)
+            
+            soup = soupify(url)
+            
+        
         dfs = []
         
         
         if row.game_times == 'left_only':
-            
-            game_time = None if re.compile('something went wrong').search(soup.text)\
-                else soup.find('td', text = re.compile('game date', re.I)).find_next().text
+                        
+            game_time = soup.find('td', text = re.compile('game date', re.I)).find_next().text
+                    
                 
             time = pd.DataFrame([[row.game_id, game_time]], columns = ['game_id','game_time'])
             
@@ -59,8 +66,7 @@ def scraper():
             
         if row.officials == 'left_only':
             
-            officials = None if re.compile('something went wrong').search(soup.text)\
-                else soup.find('td', text = 'Officials:').find_next().text.strip()
+            officials = soup.find('td', text = 'Officials:').find_next().text.strip()
             
             off = pd.DataFrame([[row.game_id, officials]], columns = ['game_id','officials'])
             
