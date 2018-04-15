@@ -23,6 +23,12 @@ def scraper():
     
 #    completed = len(scraped)
     for game_id in left:
+        
+        full_scrape = True
+        
+        if 'box_df' in set(globals().keys()) | set(locals().keys()):
+            del box_df
+        
                 
 #        percent_complete = '%5.2f'%(float(completed)/len(needed)*100)
 #        
@@ -38,15 +44,28 @@ def scraper():
             
             teams = soup.find_all('tr', {'class': 'heading'})
             
-            if (teams == []) and (period == 2):
-                break
+            if (teams, period) == ([], 2):
                 
+                break
+            
             elif teams == []:
                 
-                box_df = pd.DataFrame([[game_id] + [None]*7],
-                                  columns = ['game_id','period','school_id','order','player_id','player_name','pos','min'])
+                url = 'http://stats.ncaa.org/game/box_score/{0}'.format(game_id)
                 
-            else:
+                soup = soupify(url)
+                
+                teams = soup.find_all('tr', {'class': 'heading'})
+                
+                if teams == []:
+                
+                    box_df = pd.DataFrame([[game_id] + [None]*7],
+                          columns = ['game_id','period','school_id','order','player_id','player_name','pos','min'])
+                    
+                else:
+                    
+                    full_scrape = False
+            
+            if 'box_df' not in set(globals().keys()) | set(locals().keys()):
             
                 if 'var_list' not in set(globals().keys()) & set(locals().keys()):
                     
@@ -71,11 +90,13 @@ def scraper():
                         else None for x in players]
                     data['player_name'] = [re.sub(r'[^\x00-\x7F]+','',x[0].text.strip()) for x in players]
                     data['pos'] = [x[1].text.strip() if x[1].text != '' else None for x in players]
-                    data['min'] = [x[2].text.strip() if x[2].text.strip() != '' else None for x in players]
+                    data['min'] = [x[2].text.strip() if x[2].text.strip() != '' else None for x in players]\
+                        if full_scrape else [None]*len(players)
                     
                     for j in range(3,18):
                         var_name = re.sub(' ','_',var_list[j].lower())
-                        data[var_name] = [int(x[j].text.strip()) if x[j].text.strip() != '' else None for x in players]
+                        data[var_name] = [int(x[j].text.strip()) if x[j].text.strip() != '' else None for x in players]\
+                            if full_scrape else [None]*len(players)
                         
                     if 'box_df' not in set(globals().keys()) & set(locals().keys()):
                         
