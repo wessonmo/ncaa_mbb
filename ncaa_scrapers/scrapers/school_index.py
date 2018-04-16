@@ -1,75 +1,34 @@
-#from __future__ import print_function
 from soupify import soupify
-import pandas as pd
 from collections import OrderedDict
-import sys
-import os.path
 import re
+import os.path
+import pandas as pd
 
-def scraper(seasons, divisions):
-    
-    
-    for parameter, name in zip([seasons, divisions],['seasons','divisions']):
+def scrape(season, division):
         
-        if not isinstance(parameter, list):
-            
-            print('Parameter \'{0}\' must be a list, not a {1}'.format(name, type(parameter).__name__))
-#            sys.exit()
+    url = 'http://stats.ncaa.org/team/inst_team_list?academic_year={0}&conf_id=-1&division={1}&sport_code=MBB'\
+        .format(season, division)
     
+    soup = soupify(url)
     
-    needed = set(zip(seasons,divisions*len(seasons)))
+    schools = soup.find_all('a', href = re.compile('\/team\/[0-9]+\/[0-9]+$'))
     
+    data = OrderedDict()
     
-    file_loc = 'csv\\school_index.csv'
+    data['season'] = [season]*len(schools)
+    data['season_id'] = [int(x.get('href').split('/')[-1]) for x in schools]
+    data['school_id'] = [int(x.get('href').split('/')[2]) for x in schools]
+    data['school_name'] = [x.text for x in schools]
+    data['division'] = [division]*len(schools)
+    
+    return data
+
+def data_check(file_loc, seasons, divisions):
     
     exist = os.path.isfile(file_loc)
+        
+    index = pd.read_csv(file_loc, header = 0) if exist else pd.DataFrame(columns = ['season', 'division'])
+        
+    needed = set((x,y) for x in seasons for y in divisions) - set(zip(index.season, index.division))
     
-    scraped = set() if not exist else set((row.season,row.division) for index, row in
-                  pd.read_csv(file_loc, header = 0)[['season','division']].drop_duplicates().iterrows())
-    
-    left = needed - scraped
-    
-    
-#    completed = len(scraped)
-    for season, division in left:
-        
-#        percent_complete = '%5.2f'%(float(completed)/len(needed)*100)
-#        
-#        sys.stdout.flush()
-#        print('School Index: {0}% Complete'.format(percent_complete), end = '\r')
-        
-        
-        url = 'http://stats.ncaa.org/team/inst_team_list?academic_year={0}&conf_id=-1&division={1}&sport_code=MBB'\
-            .format(season, division)
-        
-        soup = soupify(url)
-        
-        schools = soup.find_all('a', href = re.compile('\/team\/[0-9]+\/[0-9]+$'))
-        
-        data = OrderedDict()
-        
-        data['season'] = [season]*len(schools)
-        data['season_id'] = [int(x.get('href').split('/')[-1]) for x in schools]
-        data['school_id'] = [int(x.get('href').split('/')[2]) for x in schools]
-        data['school_name'] = [x.text for x in schools]
-        data['division'] = [division]*len(schools)
-        
-        data = pd.DataFrame(data)
-        
-        with open(file_loc, 'ab' if exist else 'wb') as csvfile:
-            data.to_csv(csvfile, index = False, header = not exist)
-            
-        exist = True
-        
-#        completed += 1
-    
-#    sys.stdout.flush()
-#    print('School Index: 100.00% Complete')
-    
-
-if __name__ == '__main__':
-    
-    seasons = range(int(sys.argv[1]), int(sys.argv[2]) + 1)
-    divisions = range(int(sys.argv[3]), int(sys.argv[4]) + 1)
-    
-    scraper(seasons, divisions)
+    return needed
