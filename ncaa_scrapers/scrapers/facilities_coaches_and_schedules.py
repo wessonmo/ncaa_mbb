@@ -159,36 +159,50 @@ def update(index):
         finished = []
         
         
-        pool = mp.Pool()
-        
-        results = [pool.apply_async(data_scrape, args = (options, home_url, row), callback = finished.append)
-            for idx, row in left.iterrows()]
-        
-        
-        while len(finished) < len(left):
+        for section in range(0, len(left), 10):
             
-            percent_complete = '%5.2f'%(float(len(finished) + len(scraped))/len(needed)*100)
+            chunk = left.iloc[section : section + 10]
             
-            sys.stdout.flush()
-            print(' Facilities, Coaches, and Schedules: {0}% Complete'.format(percent_complete), end = '\r')
             
-            time.sleep(0.05)
+            chunk_finished = []
+                        
+            pool = mp.Pool(processes = mp.cpu_count() - 1)
             
-        
-        output = [p.get() for p in results]
-        
-        for dict_ in output:
+            results = [pool.apply_async(data_scrape, args = (options, home_url, row), callback = chunk_finished.append)
+                for idx, row in chunk.iterrows()]
             
-            for filetype in dict_.keys():
+            
+            start = time.time()
+            while len(chunk_finished) < len(chunk):
                 
-                df = dict_[filetype]
+                if time.time() - start >= 600:
+                    
+                    for p in results: p.terminate()
+                    
+                    raise ValueError('chunk took too long')
+                    
+                percent_complete = '%5.2f'%(float(len(chunk_finished) + len(finished) + len(scraped))/len(needed)*100)
+                
+                sys.stdout.flush()
+                print(' Facilities, Coaches, and Schedules: {0}% Complete'.format(percent_complete, section), end = '\r')
+                
+                time.sleep(0.5)
+                
             
-                file_loc2 = 'csv\\{0}.csv'.format(filetype)
+            output = [p.get() for p in results]
             
-                exist = os.path.isfile(file_loc2)
-            
-                with open(file_loc2, 'ab' if exist else 'wb') as csvfile:
-                    df.to_csv(csvfile, header = not exist, index = False)
+            for dict_ in output:
+                
+                for filetype in dict_.keys():
+                    
+                    df = dict_[filetype]
+                
+                    file_loc2 = 'csv\\{0}.csv'.format(filetype)
+                
+                    exist = os.path.isfile(file_loc2)
+                
+                    with open(file_loc2, 'ab' if exist else 'wb') as csvfile:
+                        df.to_csv(csvfile, header = not exist, index = False)
                     
                     
     sys.stdout.flush()

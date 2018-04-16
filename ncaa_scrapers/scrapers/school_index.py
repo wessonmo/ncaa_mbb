@@ -53,7 +53,7 @@ def update(seasons, divisions):
         finished = []
         
         
-        pool = mp.Pool()
+        pool = mp.Pool(processes = mp.cpu_count() - 1)
         
         results = [pool.apply_async(data_scrape, args = x, callback = finished.append) for x in left]
         
@@ -65,7 +65,7 @@ def update(seasons, divisions):
             sys.stdout.flush()
             print(' School IDs: {0}% Complete'.format(percent_complete), end = '\r')
             
-            time.sleep(0.05)
+            time.sleep(0.5)
             
         
         output = [p.get() for p in results]
