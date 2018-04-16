@@ -1,53 +1,36 @@
 from __future__ import print_function
-from sys import argv
-from multiprocessing import Process
+#from sys import argv
+import multiprocessing as mp
 from scrapers import *
 import time
 import sys
-import re
+import pandas as pd
+from __future__ import division
+import sys
+
+
 
 if __name__ == '__main__':
-    seasons = range(int(argv[1]), int(argv[2]) + 1)
-    divisions = range(int(argv[3]), int(argv[4]) + 1)
     
-    print('Scraping: School Index', end = '\r')
+    seasons = range(2016,2019)#range(int(argv[1]), int(argv[2]) + 1)
+    divisions = [1]#range(int(argv[3]), int(argv[4]) + 1)
     
-    school_index.scraper(seasons, divisions)
+    index_loc = 'csv\\school_index.csv'
     
-    sys.stdout.flush()
-    print('Complete: School Index\n')
+    missing_index = school_index.data_check(index_loc, seasons, divisions)
     
-    
-    print('Scraping: Facilities, Coaches, Schedules, Rosters, and Game IDs', end = '\r')
-    start = time.time()
-    p2a = Process(target = facilities_coaches_and_schedules.scraper)
-    p2a.start()
-    
-    p2b = Process(target = rosters.scraper)
-    p2b.start()
-
-    p2c = Process(target = game_ids.scraper)
-    p2c.start()    
-    
-    p2a.join()
-    p2b.join()
-    p2c.join()
-    
-    sys.stdout.flush()
-    print('Complete: Facilities, Coaches, Schedules, Rosters, and Game IDs\n')
-    
-    
-    print('Scraping: Box Scores, Game Times, Officials, and Play-by-plays', end = '\r')
-    
-    p3a = Process(target = box_scores.scraper)
-    p3a.start()
-    
-    p3b = Process(target = times_officials_and_pbps.scraper)
-    p3b.start()
-    
-    p3a.join()
-    p3b.join()
-    end = time.time() - start
-    sys.stdout.flush()
-    print('Complete: Box Scores, Game Times, Officials, and Play-by-plays\n')
-    print(end)
+    if missing_index:
+        
+        pool = mp.Pool()
+        
+        finished = []
+        
+        results = [pool.apply_async(school_index.scrape, args=(x), callback = finished.append) for x in missing_index]
+        
+        while len(finished) < len(missing_index):
+            
+            print('{0}%'.format(float(len(finished))/len(missing_index)))
+            
+            time.sleep(0.5)
+        
+        output = [pd.DataFrame(p.get()).head() for p in results]
