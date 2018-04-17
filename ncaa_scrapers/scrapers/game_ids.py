@@ -6,7 +6,6 @@ import re
 import os
 import multiprocessing as mp
 import sys
-import time
 
 
 def data_scrape(season_id, school_id):
@@ -62,39 +61,25 @@ def update(index):
     
     if left:
         
-        finished = []
+        finished = 0
         
+        chunk_size = 20        
         
-        for section in range(0, len(left), 10):
+        for section in range(0, len(left), chunk_size):
             
-            chunk = left[section : section + 10]
-            
-            
-            chunk_finished = []
-            
-            pool = mp.Pool(processes = mp.cpu_count() - 1)
-            
-            results = [pool.apply_async(data_scrape, args = x, callback = chunk_finished.append) for x in chunk]
-            
-            
-            start = time.time()
-            while len(chunk_finished) < len(chunk):
+            percent_complete = '%5.2f'%(float(finished + len(scraped))/len(needed)*100)
                 
-                if time.time() - start >= 600:
-                    
-                    for p in results: p.terminate()
-                    
-                    raise ValueError('chunk took too long')
-                    
-                percent_complete = '%5.2f'%(float(len(chunk_finished) + len(finished) + len(scraped))/len(needed)*100)
-                
-                sys.stdout.flush()
-                print(' Game IDs: {0}% Complete'.format(percent_complete, section), end = '\r')
-                
-                time.sleep(0.5)
+            sys.stdout.flush()
+            print(' Game IDs: {0}% Complete'.format(percent_complete, section), end = '\r')
             
-        
+            chunk = left[section : section + chunk_size]
+            
+            
+            pool = mp.Pool()
+            
+            results = [pool.apply_async(data_scrape, args = x) for x in chunk]
             output = [p.get() for p in results]
+            
             
             for df in output:
                 
@@ -102,6 +87,10 @@ def update(index):
                     df.to_csv(csvfile, header = not exist, index = False)
                     
                 exist = True
+            
+                
+            finished += chunk_size
+            
             
         game_ids = pd.read_csv(file_loc, header = 0)
             

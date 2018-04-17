@@ -6,7 +6,6 @@ import re
 import os
 import multiprocessing as mp
 import sys
-import time
 
 
 def time_scrape(row, soup):
@@ -147,41 +146,27 @@ def update(game_ids):
     
     if len(left) > 0:
         
-        finished = []
+        finished = 0
         
+        chunk_size = 20
         
-        for section in range(0, len(left), 10):
+        for section in range(0, len(left), chunk_size):
             
-            chunk = left.iloc[section : section + 10]
+            percent_complete = '%5.2f'%(float(finished + len(scraped))/len(needed)*100)
+                
+            sys.stdout.flush()
+            print(' Game Info (Start Times, Officials, and Pbps): {0}% Complete'.format(percent_complete, section),
+                  end = '\r')
+            
+            chunk = left.iloc[section : section + chunk_size]
             
             
-            chunk_finished = []
-            
-            pool = mp.Pool(processes = mp.cpu_count() - 1)
+            pool = mp.Pool()
         
-            results = [pool.apply_async(data_scrape, args = (row), callback = chunk_finished.append)
+            results = [pool.apply_async(data_scrape, args = (row))
                 for idx, row in chunk.iterrows()]
-            
-            
-            start = time.time()
-            while len(chunk_finished) < len(chunk):
-                
-                if time.time() - start >= 600:
-                    
-                    for p in results: p.terminate()
-                    
-                    raise ValueError('chunk took too long')
-                    
-                percent_complete = '%5.2f'%(float(len(chunk_finished) + len(finished) + len(scraped))/len(needed)*100)
-                
-                sys.stdout.flush()
-                print(' Game Info (Start Times, Officials, and Pbps): {0}% Complete'.format(percent_complete, section),
-                      end = '\r')
-                
-                time.sleep(0.5)
-                
-            
             output = [p.get() for p in results]
+            
             
             for dict_ in output:
                 
@@ -195,7 +180,10 @@ def update(game_ids):
                 
                     with open(file_loc2, 'ab' if exist else 'wb') as csvfile:
                         df.to_csv(csvfile, header = not exist, index = False)
-                    
-                    
+            
+            
+            finished += chunk_size
+            
+            
     sys.stdout.flush()
     print(' Game Info (Start Times, Officials, and Pbps): 100.00% Complete\n')
