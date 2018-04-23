@@ -40,12 +40,71 @@ def data_scrape(season_id, school_id):
     return data
 
 
-def update(index):
+def multi_proc(left, scraped, needed, file_loc, exist):
+    
+    finished = 0
+        
+    chunk_size = 20        
+    
+    for section in range(0, len(left), chunk_size):
+        
+        percent_complete = '%5.2f'%(float(finished + scraped)/needed*100)
+            
+        sys.stdout.flush()
+        print(' Game IDs: {0}% Complete'.format(percent_complete, section), end = '\r')
+        
+        chunk = left[section : section + chunk_size]
+        
+        
+        pool = mp.Pool(maxtasksperchild = 5)
+        
+        results = [pool.apply_async(data_scrape, args = x) for x in chunk]
+        try:
+            output = [p.get(timeout = 20) for p in results]
+        except mp.TimeoutError:
+            output = []
+        
+        
+        for df in output:
+            
+            with open(file_loc, 'ab' if exist else 'wb') as csvfile:
+                df.to_csv(csvfile, header = not exist, index = False)
+                
+            exist = True
+        
+            
+        finished += len(output)
+        
+    return pd.read_csv(file_loc, header = 0)
+
+
+def single_proc(left, scraped, needed, file_loc, exist):
+    
+    finished = 0
+    
+    for season_id, school_id in left:
+        
+        percent_complete = '%5.2f'%(float(finished + scraped)/needed*100)
+            
+        sys.stdout.flush()
+        print(' Game IDs: {0}% Complete'.format(percent_complete), end = '\r')
+        
+        with open(file_loc, 'ab' if exist else 'wb') as csvfile:
+            data_scrape(season_id, school_id).to_csv(csvfile, header = not exist, index = False)
+                
+        exist = True
+        
+        finished += 1
+        
+    return pd.read_csv(file_loc, header = 0)
+
+
+def update(index, multi_proc_bool):
     
     print(' Game IDs:', end = '\r')
     
     
-    file_loc = 'csv\\game_ids.csv'
+    file_loc = 'csv\\game_ids{0}.csv'.format('_multi' if multi_proc_bool else '_single')
     
     exist = os.path.isfile(file_loc)
     
@@ -58,43 +117,17 @@ def update(index):
     
     left = needed - scraped
     
+    scraped, needed = len(scraped), len(needed)
+    
     
     if left:
         
-        finished = 0
-        
-        chunk_size = 20        
-        
-        for section in range(0, len(left), chunk_size):
+        game_ids = multi_proc(left, scraped, needed, file_loc, exist) if multi_proc_bool\
+            else single_proc(left, scraped, needed, file_loc, exist)
             
-            percent_complete = '%5.2f'%(float(finished + len(scraped))/len(needed)*100)
-                
-            sys.stdout.flush()
-            print(' Game IDs: {0}% Complete'.format(percent_complete, section), end = '\r')
-            
-            chunk = left[section : section + chunk_size]
-            
-            
-            pool = mp.Pool()
-            
-            results = [pool.apply_async(data_scrape, args = x) for x in chunk]
-            output = [p.get() for p in results]
-            
-            
-            for df in output:
-                
-                with open(file_loc, 'ab' if exist else 'wb') as csvfile:
-                    df.to_csv(csvfile, header = not exist, index = False)
-                    
-                exist = True
-            
-                
-            finished += chunk_size
-            
-            
-        game_ids = pd.read_csv(file_loc, header = 0)
+    skip_ids = set([4274098,4042151])
             
     sys.stdout.flush()
     print(' Game IDs: 100.00% Complete\n')
     
-    return set(game_ids.loc[~pd.isnull(game_ids.game_id)].game_id)
+    return set(game_ids.loc[~pd.isnull(game_ids.game_id)].game_id) - skip_ids

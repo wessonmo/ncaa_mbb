@@ -31,12 +31,41 @@ def data_scrape(season, division):
     else: raise Exception('No data: {0}'.format(url))
 
 
-def update(seasons, divisions):
+def multi_proc(left, file_loc, exist):
+    
+    pool = mp.Pool()
+        
+    results = [pool.apply_async(data_scrape, args = x) for x in left]
+    output = [p.get(timeout = 60) for p in results]
+    
+    for df in output:
+        
+        with open(file_loc, 'ab' if exist else 'wb') as csvfile:
+            df.to_csv(csvfile, header = not exist, index = False)
+            
+        exist = True
+        
+    return pd.read_csv(file_loc, header = 0)
+
+
+def single_proc(left, file_loc, exist):
+    
+    for season, division in left:
+        
+        with open(file_loc, 'ab' if exist else 'wb') as csvfile:
+            data_scrape(season, division).to_csv(csvfile, header = not exist, index = False)
+                
+            exist = True
+    
+    return pd.read_csv(file_loc, header = 0)
+
+
+def update(seasons, divisions, multi_proc_bool):
     
     print(' School IDs:', end = '\r')
     
     
-    file_loc = 'csv\\school_index.csv'
+    file_loc = 'csv\\school_index{0}.csv'.format('_multi' if multi_proc_bool else '_single')
     
     exist = os.path.isfile(file_loc)
         
@@ -57,19 +86,7 @@ def update(seasons, divisions):
         sys.stdout.flush()
         print(' School IDs: {0}% Complete'.format(percent_complete), end = '\r')
         
-        pool = mp.Pool()
-        
-        results = [pool.apply_async(data_scrape, args = x) for x in left]
-        output = [p.get(timeout = 60) for p in results]
-            
-        for df in output:
-            
-            with open(file_loc, 'ab' if exist else 'wb') as csvfile:
-                df.to_csv(csvfile, header = not exist, index = False)
-                
-            exist = True
-            
-        index = pd.read_csv(file_loc, header = 0)
+        index = multi_proc(left, file_loc, exist) if multi_proc_bool else single_proc(left, file_loc, exist)
         
     sys.stdout.flush()
     print(' School IDs: 100.00% Complete\n')

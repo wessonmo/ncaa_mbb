@@ -11,7 +11,7 @@ def soupify(url):
             req = requests.get(url, headers = header)
             break
         except:
-            time.sleep(15)
+            time.sleep(5)
             continue
      
     return BeautifulSoup(req.content, 'lxml')

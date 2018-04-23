@@ -10,9 +10,6 @@ import sys
 
 def data_scrape(game_id):
     
-    if 'summary' in set(globals().keys()) & set(locals().keys()):
-        del summary
-    
     url = 'http://stats.ncaa.org/game/period_stats/{0}'.format(game_id)
             
     soup = soupify(url)
@@ -41,64 +38,85 @@ def data_scrape(game_id):
             
             data[stat_name] = [stat[1 + i] if len(stat) >= 2 + i else None]
         
-        summary = pd.concat([summary,pd.DataFrame(data)]) if 'summary' in set(globals().keys()) | set(locals().keys())\
-            else pd.DataFrame(data)
+        summary = pd.concat([summary,pd.DataFrame(data)]) if 'summary' in locals().keys() else pd.DataFrame(data)
     
     
     return summary
 
+def multi_proc(left, scraped, num_ids, file_loc, exist):
+    
+    finished = 0
+        
+    chunk_size = 5
+    
+    for section in range(0, len(left), chunk_size):
+        
+        percent_complete = '%5.2f'%(float(finished + scraped)/num_ids*100)
+            
+        sys.stdout.flush()
+        print(' Game Summaries: {0}% Complete'.format(percent_complete, section), end = '\r')
+        
+        chunk = left[section : section + chunk_size]
+        
+        
+        pool = mp.Pool(maxtasksperchild = 5)
+        
+        results = [pool.apply_async(data_scrape, args = (x)) for x in chunk]
+        try:
+            output = [p.get(timeout = 20) for p in results]
+        except mp.TimeoutError:
+            output = []
+			
+        for df in output:
+            
+            with open(file_loc, 'ab' if exist else 'wb') as csvfile:
+                df.to_csv(csvfile, header = not exist, index = False)
+                
+            exist = True
+        
+        
+        finished += len(output)
 
-def update(game_ids):
+
+def single_proc(left, scraped, num_ids, file_loc, exist):
+    
+    finished = 0
+    
+    for game_id in left:
+        
+        percent_complete = '%5.2f'%(float(finished + scraped)/num_ids*100)
+            
+        sys.stdout.flush()
+        print(' Game Summaries: {0}% Complete'.format(percent_complete), end = '\r')
+            
+        with open(file_loc, 'ab' if exist else 'wb') as csvfile:
+            data_scrape(game_id).to_csv(csvfile, header = not exist, index = False)
+            
+        exist = True
+            
+        finished += 1
+
+
+def update(game_ids_out, multi_proc_bool):
     
     print(' Game Summaries:', end = '\r')
     
     
-    file_loc = 'csv\\game_summaries.csv'
+    file_loc = 'csv\\game_summaries{0}.csv'.format('_multi' if multi_proc_bool else '_single')
     
     exist = os.path.isfile(file_loc)
     
-    summaries = pd.read_csv(file_loc, header = 0) if exist else pd.DataFrame(columns = ['game_id'])
+    scraped = pd.read_csv(file_loc, header = 0, low_memory = False) if exist else pd.DataFrame(columns = ['game_id'])
+    scraped = set(scraped.game_id)
     
-    
-    scraped = set(summaries.game_id)
-    
-    needed = game_ids
-    
-    left = list(needed - scraped)
-    
+    left = list(game_ids_out - scraped)
+    scraped = len(scraped)
     
     if left:
         
-        finished = 0
-        
-        chunk_size = 20
-        
-        for section in range(0, len(left), chunk_size):
-            
-            percent_complete = '%5.2f'%(float(finished + len(scraped))/len(needed)*100)
-                
-            sys.stdout.flush()
-            print(' Game Summaries: {0}% Complete'.format(percent_complete, section), end = '\r')
-            
-            chunk = left[section : section + chunk_size]
-            
-            
-            pool = mp.Pool()
-            
-            results = [pool.apply_async(data_scrape, args = (x)) for x in chunk]
-            output = [p.get() for p in results]
-            
-            
-            for df in output:
-                
-                with open(file_loc, 'ab' if exist else 'wb') as csvfile:
-                    df.to_csv(csvfile, header = not exist, index = False)
-                    
-                exist = True
-            
-            
-            finished += chunk_size            
-            
+        multi_proc(left, scraped, len(game_ids_out), file_loc, exist) if multi_proc_bool\
+            else single_proc(left, scraped, len(game_ids_out), file_loc, exist)
+    
     
     sys.stdout.flush()
     print(' Game Summaries: 100.00% Complete\n')

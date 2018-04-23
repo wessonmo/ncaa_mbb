@@ -13,12 +13,18 @@ import sys
 
 def facility_scrape(row, soup):
     
-    arena_html = soup.find('b', text = 'Arena').find_parent('tbody')
-            
-    city = re.sub('(\xa0)+',' ',soup.find('b', text = 'Location').find_next().text.strip())
-    arena = arena_html.find('b', text = 'Name').find_next().text.strip()
-    capacity = int(re.sub(',','',arena_html.find('b', text = 'Capacity').find_next().text.strip()))
+    if soup.find('b', text = 'Arena'):
     
+        arena_html = soup.find('b', text = 'Arena').find_parent('tbody')
+            
+        city = re.sub('(\xa0)+',' ',soup.find('b', text = 'Location').find_next().text.strip())
+        arena = arena_html.find('b', text = 'Name').find_next().text.strip()
+        capacity = int(re.sub(',','',arena_html.find('b', text = 'Capacity').find_next().text.strip()))
+        
+    else:
+        
+        city, arena, capacity = None, None, None
+        
     return pd.DataFrame([[row.school_id, row.season, city, arena, capacity]],
                         columns = ['school_id','season','city','arena','capacity'])
     
@@ -120,19 +126,89 @@ def data_scrape(options, home_url, row):
     return dict_
 
 
-def update(index):
+def multi_proc(left, scraped, needed, options, home_url, multi_proc_bool):
+    
+    finished = 0
+        
+    chunk_size = 20
+    
+    for section in range(0, len(left), chunk_size):
+        
+        percent_complete = '%5.2f'%(float(finished + scraped)/needed*100)
+            
+        sys.stdout.flush()
+        print(' Facilities, Coaches, and Schedules: {0}% Complete'.format(percent_complete), end = '\r')
+        
+        chunk = left.iloc[section : section + chunk_size]
+        
+                    
+        pool = mp.Pool(maxtasksperchild = 5)
+        
+        results = [pool.apply_async(data_scrape, args = (options, home_url, row))
+            for idx, row in chunk.iterrows()]
+        try:
+            output = [p.get(timeout = 20) for p in results]
+        except mp.TimeoutError:
+            output = []
+        
+        
+        for dict_ in output:
+            
+            for filetype in dict_.keys():
+                
+                df = dict_[filetype]
+            
+                file_loc2 = 'csv\\{0}{1}.csv'.format(filetype, '_multi' if multi_proc_bool else '_single')
+            
+                exist = os.path.isfile(file_loc2)
+            
+                with open(file_loc2, 'ab' if exist else 'wb') as csvfile:
+                    df.to_csv(csvfile, header = not exist, index = False)
+        
+                    
+        finished += len(output)
+
+
+def single_proc(left, scraped, needed, options, home_url, multi_proc_bool):
+    
+    finished = 0
+    
+    for idx, row in left.iterrows():
+        
+        percent_complete = '%5.2f'%(float(finished + scraped)/needed*100)
+            
+        sys.stdout.flush()
+        print(' Facilities, Coaches, and Schedules: {0}% Complete'.format(percent_complete), end = '\r')
+        
+        dict_ = data_scrape(options, home_url, row)
+            
+        for filetype in dict_.keys():
+            
+            df = dict_[filetype]
+        
+            file_loc2 = 'csv\\{0}{1}.csv'.format(filetype, '_multi' if multi_proc_bool else '_single')
+        
+            exist = os.path.isfile(file_loc2)
+        
+            with open(file_loc2, 'ab' if exist else 'wb') as csvfile:
+                df.to_csv(csvfile, header = not exist, index = False)
+        
+        finished += 1
+    
+
+def update(index, multi_proc_bool):
     
     print(' Facilities, Coaches, and Schedules:', end = '\r')
     
-    needed = index[['season','school_id']]
+    needed = index.loc[:,['season','school_id']]
     
     filenames = ['facilities','coaches','schedules']
     
     for filename in filenames:
                 
-        file_loc = 'csv\\{0}.csv'.format(filename)
+        file_loc = 'csv\\{0}{1}.csv'.format(filename, '_multi' if multi_proc_bool else '_single')
         
-        if os.path.isfile(file_loc.format(filename)):
+        if os.path.isfile(file_loc):
             
             file_df = pd.read_csv(file_loc, header = 0)[['season','school_id']].drop_duplicates()
             
@@ -142,10 +218,11 @@ def update(index):
             
             needed.loc[:,filename] = 'left_only'
             
-    scraped = needed.loc[needed.apply(lambda x: 'left_only' not in [x.facilities, x.coaches, x.schedules], axis = 1)]
+    scraped = len(needed.loc[needed.apply(lambda x: 'left_only' not in [x.facilities, x.coaches, x.schedules],axis = 1)])
     
     left = needed.loc[needed.apply(lambda x: 'left_only' in [x.facilities, x.coaches, x.schedules], axis = 1)]
     
+    needed = len(needed)
     
     if len(left) > 0:
         
@@ -155,45 +232,9 @@ def update(index):
         options.add_argument('--headless')
         
         
-        finished = 0
-        
-        chunk_size = 20
-        
-        for section in range(0, len(left), chunk_size):
-            
-            percent_complete = '%5.2f'%(float(finished + len(scraped))/len(needed)*100)
-                
-            sys.stdout.flush()
-            print(' Facilities, Coaches, and Schedules: {0}% Complete'.format(percent_complete, section), end = '\r')
-            
-            chunk = left.iloc[section : section + chunk_size]
-            
-                        
-            pool = mp.Pool()
-            
-            results = [pool.apply_async(data_scrape, args = (options, home_url, row))
-                for idx, row in chunk.iterrows()]
-            output = [p.get() for p in results]
-            
-            
-            for dict_ in output:
-                
-                for filetype in dict_.keys():
-                    
-                    df = dict_[filetype]
-                
-                    file_loc2 = 'csv\\{0}.csv'.format(filetype)
-                
-                    exist = os.path.isfile(file_loc2)
-                
-                    with open(file_loc2, 'ab' if exist else 'wb') as csvfile:
-                        df.to_csv(csvfile, header = not exist, index = False)
-            
-                        
-            finished += chunk_size
-            
-            
-                    
-                    
+        multi_proc(left, scraped, needed, options, home_url, multi_proc_bool) if multi_proc_bool\
+            else single_proc(left, scraped, needed, options, home_url, multi_proc_bool)
+    
+    
     sys.stdout.flush()
     print(' Facilities, Coaches, and Schedules: 100.00% Complete\n')
