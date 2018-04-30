@@ -15,4 +15,4 @@
 *.PDF	 diff=astextplain
 *.rtf	 diff=astextplain
 *.RTF	 diff=astextplain
-ncaa_scrapers/csv/** filter=lfs diff=lfs merge=lfs -text
+ncaa_data/csv/** filter=lfs diff=lfs merge=lfs -text
