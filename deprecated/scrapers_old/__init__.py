@@ -4,5 +4,6 @@ __all__ = ['school_index',
            'game_ids',
            'box_scores', 
            'times_officials_and_pbps',
-           'game_summaries'
+           'game_summaries',
+           'index'
            ]

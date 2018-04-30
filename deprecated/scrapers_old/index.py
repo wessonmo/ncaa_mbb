@@ -1,12 +1,9 @@
-from __future__ import print_function
 from functions.soupify import soupify
 from collections import OrderedDict
 import re
 import pandas as pd
 
-
-def index(season, division):
-        
+def html_parse(season, division):
     url = 'http://stats.ncaa.org/team/inst_team_list?academic_year={0}&conf_id=-1&division={1}&sport_code=MBB'\
         .format(season, division)
     
@@ -22,7 +19,7 @@ def index(season, division):
     data['school_name'] = [x.text for x in schools]
     data['division'] = [division]*len(schools)
     
-    data = pd.DataFrame(data)
-    
-    if len(data) > 0: return data
-    else: raise Exception('No data: {0}'.format(url))
+    if len(data) > 0:
+        return pd.DataFrame(data)
+    else:
+        raise Exception('No data: {0}'.format(url))
