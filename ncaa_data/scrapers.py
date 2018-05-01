@@ -1,3 +1,5 @@
+from __future__ import print_function
+import sys
 import parsers
 import pandas as pd
 from collections import OrderedDict
@@ -7,51 +9,67 @@ import multiprocessing as mp
 
 #team scrapers
 def team_indexes(seasons, divisions):
+    print(' {0: >14}:'.format('Team Indexes'), end = '\r')
+    
     file_loc = 'csv\\team_index.csv'
     file_exist = os.path.isfile(file_loc)
     indexes = pd.read_csv(file_loc) if file_exist else pd.DataFrame(columns = ['season','division'])
     miss_seasons = set((x,y) for x in seasons for y in divisions) - set(zip(indexes.season, indexes.division))
-    
-    if miss_seasons:
-        pool = mp.Pool()
-        results = [pool.apply_async(parsers.team_index, args = x) for x in miss_seasons]
-        output = [p.get(timeout = 60) for p in results]
-        
-        for df in output:
-            with open(file_loc, 'ab' if file_exist else 'wb') as csv_file:
-                df.to_csv(csv_file, header = not file_exist, index = False)
-            
-            file_exist = True
 
-        indexes = pd.read_csv(file_loc)[['season','school_id']]
+    completed, needed = len(set(zip(indexes.season, indexes.division))), len(set((x,y) for x in seasons for y in divisions))
+    sys.stdout.flush()
+    print(' {0: >14}: {1: >7}/{2: <7}'.format('Team Indexes',completed, needed), end = '\r')
 
-    return indexes
+    for season, division in miss_seasons:
+        output = parsers.team_index(season, division)
+
+        with open(file_loc, 'ab' if file_exist else 'wb') as csv_file:
+            output.to_csv(csv_file, header = not file_exist, index = False)
+        file_exist = True
+
+        completed += 1
+        sys.stdout.flush()
+        print(' {0: >14}: {1: >7}/{2: <7}'.format('Team Indexes',completed, needed), end = '\r')
+
+    sys.stdout.flush()
+    print(' {0: >14}: {1: >7}/{2: <7}'.format('Team Indexes',completed, needed))
 
 
-def rosters(indexes):
+def rosters():
+    print(' {0: >14}:'.format('Rosters'), end = '\r')
+
+    indexes = pd.read_csv('csv\\team_index.csv')[['season_id','school_id']]
+
     roster_loc = 'csv\\rosters.csv'
     roster_exist = os.path.isfile(roster_loc)
-    rosters = set(tuple(x) for x in pd.read_csv(roster_loc)[['season_id','school_id']]) if roster_exist else set()
+    rosters = set((row.season_id, row.school_id) for index, row in pd.read_csv(roster_loc)[['season_id','school_id']].iterrows())\
+        if roster_exist else set()
     miss_rosters = list(set(zip(indexes.season_id, indexes.school_id)) - rosters)
+
+    completed, needed = len(rosters), len(set(zip(indexes.season_id, indexes.school_id)))
+    sys.stdout.flush()
+    print(' {0: >14}: {1: >7}/{2: <7}'.format('Rosters',completed, needed), end = '\r')
     
-    if miss_rosters:
-        chunk_size = 20
+    for season_id, school_id in miss_rosters:
+        output = parsers.roster(season_id, school_id)
 
-        for cutoff in range(0, len(miss_rosters), chunk_size):
-            chunk = miss_rosters[cutoff : cutoff + chunk_size]
+        with open(roster_loc, 'ab' if roster_exist else 'wb') as csv_file:
+            output.to_csv(csv_file, header = not roster_exist, index = False)
+        roster_exist = True
 
-            pool = mp.Pool(maxtasksperchild = 5)
-            results = [pool.apply_async(parsers.roster,args = x) for x in chunk]
-            output = [p.get(timeout = 20) for p in results]                    
-            
-            for df in output:
-                with open(roster_loc, 'ab' if roster_exist else 'wb') as csv_file:
-                    df.to_csv(csv_file, header = not roster_exist, index = False)
-                
-                roster_exist = True
+        completed += 1
+        sys.stdout.flush()
+        print(' {0: >14}: {1: >7}/{2: <7}'.format('Rosters',completed, needed), end = '\r')
+
+    sys.stdout.flush()
+    print(' {0: >14}: {1: >7}/{2: <7}'.format('Rosters',completed, needed))
 
 
-def team_info(indexes):
+def team_info():
+    print(' {0: >14}:'.format('Team Info'), end = '\r')
+
+    indexes = pd.read_csv('csv\\team_index.csv')[['season','season_id','school_id']]
+
     for var_name in ['coaches','schedules','facilities']:
         file_loc = 'csv\\{0}.csv'.format(var_name)
         file_exist = os.path.isfile(file_loc)
@@ -64,79 +82,96 @@ def team_info(indexes):
             indexes.loc[:,var_name] = 'left_only'
     
     miss_info = indexes.loc[indexes.apply(lambda x: 'left_only' in list(x), axis = 1)]
-    
-    if len(miss_info) > 0:
-        chunk_size = 20
 
-        for cutoff in range(0, len(miss_info), chunk_size):
-            chunk = miss_info.iloc[cutoff : cutoff + chunk_size]
-            
-            pool = mp.Pool(maxtasksperchild = 5)
-            results = [pool.apply_async(parsers.team_info, args = (row,)) for index, row in chunk.iterrows()]
-            output = [p.get(timeout = 20) for p in results]
-            
-            for dict_ in output:
-                for file_type in dict_.keys():
-                    df = dict_[file_type]
-                    
-                    file_loc = 'csv\\{0}.csv'.format(file_type)
-                    exist = os.path.isfile(file_loc)
-                    
-                    with open(file_loc, 'ab' if exist else 'wb') as csv_file:
-                        df.to_csv(csv_file, header = not exist, index = False)
+    completed, needed = len(indexes) - len(miss_info), len(indexes)
+    sys.stdout.flush()
+    print(' {0: >14}: {1: >7}/{2: <7}'.format('Team Info',completed, needed), end = '\r')
 
-    return pd.read_csv('csv\\schedules.csv')[['game_id']].drop_duplicates()
+    for index, row in miss_info.iterrows():
+        dict_ = parsers.team_info(row)
+
+        for file_type in dict_.keys():
+            df = dict_[file_type]
+            
+            file_loc = 'csv\\{0}.csv'.format(file_type)
+            exist = os.path.isfile(file_loc)
+            
+            with open(file_loc, 'ab' if exist else 'wb') as csv_file:
+                df.to_csv(csv_file, header = not exist, index = False)
+
+        completed += 1
+        sys.stdout.flush()
+        print(' {0: >14}: {1: >7}/{2: <7}'.format('Team Info',completed, needed), end = '\r')
+
+    sys.stdout.flush()
+    print(' {0: >14}: {1: >7}/{2: <7}'.format('Team Info',completed, needed))
 
 
 #game scrapers
-def game_summaries(game_ids):
+def game_summaries():
+    print(' {0: >14}:'.format('Game Summaries'), end = '\r')
+
+    game_ids = set(row.game_id for index, row in pd.read_csv('csv\\schedules.csv').iterrows() if not pd.isnull(row.game_id))
+
     summary_loc = 'csv\\game_summaries.csv'
     summary_exist = os.path.isfile(summary_loc)
     summaries = set(pd.read_csv(summary_loc).game_id) if summary_exist else set()
-    miss_summaries = list(set(game_ids.game_id) - summaries)
-    
-    if miss_summaries:
-        chunk_size = 20
+    miss_summaries = list(game_ids - summaries)
 
-        for cutoff in range(0, len(miss_summaries), chunk_size):
-            chunk = miss_summaries[cutoff : cutoff + chunk_size]
+    completed, needed = len(summaries), len(game_ids)
+    sys.stdout.flush()
+    print(' {0: >14}: {1: >7}/{2: <7}'.format('Game Summaries',completed, needed), end = '\r')
 
-            pool = mp.Pool(maxtasksperchild = 5)
-            results = [pool.apply_async(parsers.game_summary, args = x) for x in chunk]
-            output = [p.get(timeout = 20) for p in results]                    
-            
-            for df in output:
-                with open(summary_loc, 'ab' if summary_exist else 'wb') as csv_file:
-                    df.to_csv(csv_file, header = not summary_exist, index = False)
-                
-                summary_exist = True
+    for game_id in miss_summaries:
+        output = parsers.game_summary(game_id)
+
+        with open(summary_loc, 'ab' if summary_exist else 'wb') as csv_file:
+            output.to_csv(csv_file, header = not summary_exist, index = False)
+        summary_exist = True
+
+        completed += 1
+        sys.stdout.flush()
+        print(' {0: >14}: {1: >7}/{2: <7}'.format('Game Summaries',completed, needed), end = '\r')
+
+    sys.stdout.flush()
+    print(' {0: >14}: {1: >7}/{2: <7}'.format('Game Summaries',completed, needed))
 
 
-def box_scores(game_ids):
-    box_loc = 'csv\\game_summaries.csv'
+def box_scores():
+    print(' {0: >14}:'.format('Box Scores'), end = '\r')
+
+    game_ids = set(row.game_id for index, row in pd.read_csv('csv\\schedules.csv').iterrows() if not pd.isnull(row.game_id))
+
+    box_loc = 'csv\\box_scores.csv'
     box_exist = os.path.isfile(box_loc)
     box_scores = set(pd.read_csv(box_loc).game_id) if box_exist else set()
-    miss_boxes = list(set(game_ids.game_id) - box_scores)
-    
-    if miss_boxes:
-        chunk_size = 20
+    miss_boxes = list(game_ids - box_scores)
 
-        for cutoff in range(0, len(miss_boxes), chunk_size):
-            chunk = miss_boxes[cutoff : cutoff + chunk_size]
+    completed, needed = len(box_scores), len(game_ids)
+    sys.stdout.flush()
+    print(' {0: >14}: {1: >7}/{2: <7}'.format('Box Scores',completed, needed), end = '\r')
 
-            pool = mp.Pool(maxtasksperchild = 5)
-            results = [pool.apply_async(parsers.box_score, args = x) for x in chunk]
-            output = [p.get(timeout = 20) for p in results]                    
-            
-            for df in output:
-                with open(box_loc, 'ab' if box_exist else 'wb') as csv_file:
-                    df.to_csv(csv_file, header = not box_exist, index = False)
-                
-                box_exist = True
+    for game_id in miss_boxes:
+        output = parsers.box_score(game_id)
+
+        with open(box_loc, 'ab' if box_exist else 'wb') as csv_file:
+            output.to_csv(csv_file, header = not box_exist, index = False)
+        box_exist = True
+
+        completed += 1
+        sys.stdout.flush()
+        print(' {0: >14}: {1: >7}/{2: <7}'.format('Box Scores',completed, needed), end = '\r')
+
+    sys.stdout.flush()
+    print(' {0: >14}: {1: >7}/{2: <7}'.format('Box Scores',completed, needed))
 
 
-def game_info(game_ids):
-    for var_name in ['game_times','officials','pbps']:
+def game_info():
+    print(' {0: >14}:'.format('Game Info'), end = '\r')
+
+    game_ids = pd.read_csv('csv\\schedules.csv')[['game_id']].drop_duplicates()
+
+    for var_name in ['game_times','game_locs','officials','pbps']:
         file_loc = 'csv\\{0}.csv'.format(var_name)
         file_exist = os.path.isfile(file_loc)
 
@@ -147,24 +182,30 @@ def game_info(game_ids):
         else:
             game_ids.loc[:,var_name] = 'left_only'
     
-    miss_info = game_ids.loc[indexes.apply(lambda x: 'left_only' in list(x), axis = 1)]
-    
-    if len(miss_info) > 0:
-        chunk_size = 20
+    miss_info = game_ids.loc[game_ids.apply(lambda x: 'left_only' in list(x), axis = 1)]
 
-        for cutoff in range(0, len(miss_info), chunk_size):
-            chunk = miss_info.iloc[cutoff : cutoff + chunk_size]
+    completed, needed = len(game_ids) - len(miss_info), len(game_ids)
+    sys.stdout.flush()
+    print(' {0: >14}: {1: >7}/{2: <7}'.format('Game Info',completed, needed), end = '\r')
+
+    for index, row in miss_info.iterrows():
+        dict_ = parsers.game_info(row)
+
+        for file_type in dict_.keys():
+            df = dict_[file_type]
             
-            pool = mp.Pool(maxtasksperchild = 5)
-            results = [pool.apply_async(parsers.game_info, args = (row,)) for index, row in chunk.iterrows()]
-            output = [p.get(timeout = 20) for p in results]
+            file_loc = 'csv\\{0}.csv'.format(file_type)
+            exist = os.path.isfile(file_loc)
             
-            for dict_ in output:
-                for file_type in dict_.keys():
-                    df = dict_[file_type]
-                    
-                    file_loc = 'csv\\{0}.csv'.format(file_type)
-                    exist = os.path.isfile(file_loc)
-                    
-                    with open(file_loc, 'ab' if exist else 'wb') as csv_file:
-                        df.to_csv(csv_file, header = not exist, index = False)
+            with open(file_loc, 'ab' if exist else 'wb') as csv_file:
+                df.to_csv(csv_file, header = not exist, index = False)
+
+        completed += 1
+        sys.stdout.flush()
+        print(' {0: >14}: {1: >7}/{2: <7}'.format('Game Info',completed, needed), end = '\r')
+
+    sys.stdout.flush()
+    print(' {0: >14}: {1: >7}/{2: <7}'.format('Game Info',completed, needed))
+
+if __name__ == '__main__':
+    pass
