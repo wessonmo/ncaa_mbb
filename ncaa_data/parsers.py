@@ -4,6 +4,7 @@ import time
 from collections import OrderedDict
 import re
 import pandas as pd
+import backup_parsers
 
 def soupify(url):
     header = {'User-Agent':
@@ -18,6 +19,8 @@ def soupify(url):
             continue
      
     return BeautifulSoup(req.content, 'lxml')
+
+ncaa_err_re = re.compile('something went wrong')
 
 #team parsers
 def team_index(season, division):
@@ -69,7 +72,7 @@ def roster(season_id, school_id):
     else: raise Exception('No data: {0}'.format(url))
 
 arena_re = re.compile('(?<=Name: ).*')
-capacity_re = re.compile('(?<=Name: ).*')
+capacity_re = re.compile('(?<=Capacity: ).*')
 record_re = re.compile('(?<=Record: )[0-9]+\-[0-9]+')
 ot_re = re.compile('(?<=\()[0-9]+(?=OT\))')
 
@@ -77,13 +80,20 @@ def team_info(row):
     url = 'http://stats.ncaa.org/team/{0}/{1}'.format(row.school_id, row.season_id)
     soup = soupify(url)
 
+    if ncaa_err_re.search(soup.text):
+        dict_ = backup_parsers.team_info(row)
+        return dict_
+
     dict_ = {}
     
     if row.facilities == 'left_only':
-        text = soup.find('div', {'id': 'facility_div'}).text
+        try:
+            fac_text = soup.find('div', {'id': 'facility_div'}).text
+        except:
+            raise ValueError('no facility {0}'.format(row))
         
-        arena = arena_re.search(text).group(0) if arena_re.search(text) else None
-        capacity = capacity_re.search(text).group(0) if capacity_re.search(text) else None
+        arena = arena_re.search(fac_text).group(0) if arena_re.search(fac_text) else None
+        capacity = capacity_re.search(fac_text).group(0) if capacity_re.search(fac_text) else None
 
         dict_['facilities'] = pd.DataFrame([[row.season_id, row.school_id, arena, capacity]],
             columns = ['season_id','school_id','arena','capacity'])
@@ -104,7 +114,7 @@ def team_info(row):
         
     if row.schedules == 'left_only':
         schedule = soup.find('td', text = re.compile('schedule', re.I)).find_parent('table')
-        games = schedule.find_all('tr', {'class': None})
+        games = [x for x in schedule.find_all('tr', {'class': None}) if len(x.find_all('td')) == 3]
 
         data = OrderedDict()
         data['season_id'] = [row.season_id]*len(games)
@@ -114,8 +124,6 @@ def team_info(row):
         data['opp_id'] = [int(x.find_all('td')[1].find('a').get('href').split('/')[2])
             if x.find_all('td')[1].find('a') else None for x in games]
         data['opp_text'] = [re.split('(?<=.)@',x.find_all('td')[1].get_text(strip = True))[0] for x in games]
-        data['loc_text'] = [re.split('(?<=.)@',x.find_all('td')[1].get_text(strip = True))[1]
-            if len(re.split('(?<=.)@',x.find_all('td')[1].get_text(strip = True))) > 1 else None for x in games]
         data['school_pts'] = [int(x.find_all('td')[2].text.strip()[2:].split(' ')[0]) for x in games]
         data['opp_pts'] = [int(x.find_all('td')[2].text.strip()[2:].split(' ')[2]) for x in games]
         data['ot'] = [int(ot_re.search(x.find_all('td')[2].text.strip()[2:]).group(0))
@@ -125,10 +133,10 @@ def team_info(row):
 
     return dict_
 
-# url = 'http://stats.ncaa.org/teams/22078'
-# url = 'http://stats.ncaa.org/teams/10003'
+# url = 'http://stats.ncaa.org/teams/14479'
+# url = 'http://stats.ncaa.org/teams/57293'
 # soup = soupify(url)
-
+# print(soup)
 
 school_id_re = re.compile('(?<=team\/)[0-9]+(?=\/)')
 
@@ -137,9 +145,11 @@ def game_summary(game_id):
     url = 'http://stats.ncaa.org/game/period_stats/{0}'.format(game_id)
 
     soup = soupify(url)
-
-    school_ids = soup.find('td', text = re.compile('total', re.I)).find_parent('table').find_all('tr', {'class': None})
-    school_ids = [int(school_id_re.search(x.find('a').get('href')).group(0)) if x.find('a') else None for x in schools]
+    try:
+        school_ids = soup.find('td', text = re.compile('total', re.I)).find_parent('table').find_all('tr', {'class': None})
+    except:
+        raise ValueError(game_id)
+    school_ids = [int(school_id_re.search(x.find('a').get('href')).group(0)) if x.find('a') else None for x in school_ids]
     
     stats = soup.find('td', text = 'Game Stats').find_parent('table').find('table').find_all('tr', {'class': None})
     stats = [[y.text for y in x.find_all('td')] for x in stats]
@@ -160,6 +170,8 @@ def game_summary(game_id):
 
 
 def box_score(game_id):
+    full_scrape = True
+
     for period in [1,2]:
         if 'period_df' in locals().keys(): del period_df
         
@@ -167,26 +179,27 @@ def box_score(game_id):
         
         soup = soupify(url)
         
+        if ncaa_err_re.search(soup.text):
+            if period == 2: return box_df
+            else:
+                url = 'http://stats.ncaa.org/game/index/{0}'.format(game_id)
+            
+                soup = soupify(url)
+
+                if ncaa_err_re.search(soup.text):
+                    return pd.DataFrame([[game_id] + [None]*7], columns = ['game_id','period','school_id','order','player_id','player_name','pos','min'])
+                else:
+                    full_scrape = False
+
         teams = soup.find_all('tr', {'class': 'heading'})
-        
-        if (len(teams) < 2) and period == 2: return box_df
-        elif len(teams) < 2:
-            url = 'http://stats.ncaa.org/game/index/{0}'.format(game_id)
-            
-            soup = soupify(url)
-            
-            teams = soup.find_all('tr', {'class': 'heading'})
-            
-            if len(teams) < 2:
-                return pd.DataFrame([[game_id] + [None]*7],
-                                columns = ['game_id','period','school_id','order','player_id','player_name','pos','min'])
-            else: full_scrape = False
         
         if 'var_list' not in locals().keys():
             var_list = [x.text for x in
                         teams[0].find_parent('table').find('tr', {'class': 'grey_heading'}).find_all('th')]
 
         for team in teams:
+            school_name = team.find('td').get_text(strip = True)
+
             school_id = int(school_id_re.search(soup.find('a', text = team.text.strip()).get('href')).group(0))\
                             if soup.find('a', text = team.text.strip()) != None else None
             
@@ -196,6 +209,7 @@ def box_score(game_id):
                 
             data['game_id'] = [game_id]*len(players)
             data['period'] = [period]*len(players)
+            data['school_name'] = [school_name]*len(players)
             data['school_id'] = [school_id]*len(players)
             data['order'] = range(len(players))
             data['player_id'] = [int(x[0].find('a').get('href').split('=')[-1]) if x[0].find('a') != None
@@ -223,19 +237,24 @@ def game_info(row):
         
     soup = soupify(url)
     
-    if re.compile('something went wrong').search(soup.text):
+    if ncaa_err_re.search(soup.text):
         url, primary = 'http://stats.ncaa.org/game/index/{0}'.format(row.game_id), False
         
         soup = soupify(url)
         
-        cont = True if not re.compile('something went wrong').search(soup.text) else False
+        cont = True if not ncaa_err_re.search(soup.text) else False
     
     dict_ = {}
         
     if row.game_times == 'left_only':
-        game_time = soup.find('td', text = re.compile('game date', re.I)).find_next().text if cont else None
+        game_time = soup.find('td', text = 'Game Date:').find_next().text if cont else None
         
-        dict_['game_times'] = pd.DataFrame([[row.game_id, game_time]], columns = ['game_id','game_time'])            
+        dict_['game_times'] = pd.DataFrame([[row.game_id, game_time]], columns = ['game_id','game_time'])
+
+    if row.game_locs == 'left_only':
+        game_loc = soup.find('td', text = 'Location:').find_next().text if cont else None
+
+        dict_['game_locs'] = pd.DataFrame([[row.game_id, game_loc]], columns = ['game_id','game_loc'])
     
     if row.officials == 'left_only':
         officials = soup.find('td', text = 'Officials:').find_next().text.strip() if cont else None
@@ -243,19 +262,17 @@ def game_info(row):
         dict_['officials'] = pd.DataFrame([[row.game_id, officials]], columns = ['game_id','officials'])
 
     if row.pbps == 'left_only':
-        if not primary:
+        if not primary or not cont:
             dict_['pbps'] = pd.DataFrame([[row.game_id] + [None]*7], columns = ['game_id','period','time','school1_id','school1_event','score','school2_id','school2_event'])
+            return dict_
         else:
-            team_ids = [''] if re.compile('something went wrong').search(soup.text)\
-                else soup.find('td', text = re.compile('total', re.I)).find_parent('table').find_all('tr', {'class': None})
+            team_ids = soup.find('td', text = re.compile('total', re.I)).find_parent('table').find_all('tr', {'class': None})
 
             if len([x for x in team_ids if x.find('a') != None]) < 1:
-                dict_['pbps'] = pd.DataFrame([[row.game_id] + [None]*7],
-                    columns = ['game_id','period','time','school1_id','school1_event','score','school2_id','school2_event'])
+                dict_['pbps'] = pd.DataFrame([[row.game_id] + [None]*7], columns = ['game_id','period','time','school1_id','school1_event','score','school2_id','school2_event'])
                 return dict_
 
-            team_ids = [int(re.compile('(?<=team\/)[0-9]+(?=\/)').search(x.find('a').get('href')).group(0))
-                if x.find('a') else None for x in team_ids]
+            team_ids = [int(re.compile('(?<=team\/)[0-9]+(?=\/)').search(x.find('a').get('href')).group(0)) for x in team_ids]
 
             periods = set(x.get('href') for x in soup.find_all('a', href = re.compile('#pd[0-9]')))
 
