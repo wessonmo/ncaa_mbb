@@ -5,6 +5,8 @@ from collections import OrderedDict
 import re
 import pandas as pd
 import backup_parsers
+import os
+
 
 def soupify(url):
     header = {'User-Agent':
@@ -114,7 +116,7 @@ def team_info(row):
         
     if row.schedules == 'left_only':
         schedule = soup.find('td', text = re.compile('schedule', re.I)).find_parent('table')
-        games = [x for x in schedule.find_all('tr', {'class': None}) if len(x.find_all('td')) == 3]
+        games = [x for x in schedule.find_all('tr', {'class': None}) if len(x.find_all('td')) == 3 and x.find_all('td')[2].get_text(strip = True) != '-']
 
         data = OrderedDict()
         data['season_id'] = [row.season_id]*len(games)
@@ -145,10 +147,8 @@ def game_summary(game_id):
     url = 'http://stats.ncaa.org/game/period_stats/{0}'.format(game_id)
 
     soup = soupify(url)
-    try:
-        school_ids = soup.find('td', text = re.compile('total', re.I)).find_parent('table').find_all('tr', {'class': None})
-    except:
-        raise ValueError(game_id)
+    
+    school_ids = soup.find('td', text = re.compile('total', re.I)).find_parent('table').find_all('tr', {'class': None})
     school_ids = [int(school_id_re.search(x.find('a').get('href')).group(0)) if x.find('a') else None for x in school_ids]
     
     stats = soup.find('td', text = 'Game Stats').find_parent('table').find('table').find_all('tr', {'class': None})
@@ -179,6 +179,9 @@ def box_score(game_id):
         
         soup = soupify(url)
         
+        school_ids = soup.find('td', text = re.compile('total', re.I)).find_parent('table').find_all('tr', {'class': None})
+        school_ids = [int(school_id_re.search(x.find('a').get('href')).group(0)) if x.find('a') else None for x in school_ids]
+        
         if ncaa_err_re.search(soup.text):
             if period == 2: return box_df
             else:
@@ -187,7 +190,11 @@ def box_score(game_id):
                 soup = soupify(url)
 
                 if ncaa_err_re.search(soup.text):
-                    return pd.DataFrame([[game_id] + [None]*7], columns = ['game_id','period','school_id','order','player_id','player_name','pos','min'])
+                    if not os.path.isfile('csv\\box_scores.csv'):
+                        return pd.DataFrame
+                    else:
+                        cols = pd.read_csv('csv\\box_scores.csv').columns
+                        return pd.DataFrame([[game_id] + [None]*(len(cols) - 1)], columns = cols)
                 else:
                     full_scrape = False
 
@@ -197,11 +204,10 @@ def box_score(game_id):
             var_list = [x.text for x in
                         teams[0].find_parent('table').find('tr', {'class': 'grey_heading'}).find_all('th')]
 
-        for team in teams:
+        for i, team in enumerate(teams):
             school_name = team.find('td').get_text(strip = True)
 
-            school_id = int(school_id_re.search(soup.find('a', text = team.text.strip()).get('href')).group(0))\
-                            if soup.find('a', text = team.text.strip()) != None else None
+            school_id = school_ids[i]
             
             players = [x.find_all('td') for x in team.find_parent('table').find_all('tr', {'class': 'smtext'})]
             
@@ -252,7 +258,7 @@ def game_info(row):
         dict_['game_times'] = pd.DataFrame([[row.game_id, game_time]], columns = ['game_id','game_time'])
 
     if row.game_locs == 'left_only':
-        game_loc = soup.find('td', text = 'Location:').find_next().text if cont else None
+        game_loc = soup.find('td', text = 'Location:').find_next().text if cont and soup.find('td', text = 'Location:') else None
 
         dict_['game_locs'] = pd.DataFrame([[row.game_id, game_loc]], columns = ['game_id','game_loc'])
     
@@ -271,12 +277,12 @@ def game_info(row):
             if len([x for x in team_ids if x.find('a') != None]) < 1:
                 dict_['pbps'] = pd.DataFrame([[row.game_id] + [None]*7], columns = ['game_id','period','time','school1_id','school1_event','score','school2_id','school2_event'])
                 return dict_
-
-            team_ids = [int(re.compile('(?<=team\/)[0-9]+(?=\/)').search(x.find('a').get('href')).group(0)) for x in team_ids]
+            
+            team_ids = [int(re.compile('(?<=team\/)[0-9]+(?=\/)').search(x.find('a').get('href')).group(0)) if x.find('a') else None for x in team_ids]
 
             periods = set(x.get('href') for x in soup.find_all('a', href = re.compile('#pd[0-9]')))
 
-            if periods == set():
+            if periods == set() or len([x for x in team_ids if x != None]) < 1:
                 dict_['pbps'] = pd.DataFrame([[row.game_id] + [None]*7],
                     columns = ['game_id','period','time','school1_id','school1_event','score','school2_id','school2_event'])
                 return dict_

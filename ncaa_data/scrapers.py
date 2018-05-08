@@ -154,6 +154,9 @@ def box_scores():
     for game_id in miss_boxes:
         output = parsers.box_score(game_id)
 
+        if len(output) == 0:
+            continue
+
         with open(box_loc, 'ab' if box_exist else 'wb') as csv_file:
             output.to_csv(csv_file, header = not box_exist, index = False)
         box_exist = True
@@ -170,6 +173,7 @@ def game_info():
     print(' {0: >14}:'.format('Game Info'), end = '\r')
 
     game_ids = pd.read_csv('csv\\schedules.csv')[['game_id']].drop_duplicates()
+    game_ids = game_ids.loc[~pd.isnull(game_ids.game_id),:]
 
     for var_name in ['game_times','game_locs','officials','pbps']:
         file_loc = 'csv\\{0}.csv'.format(var_name)
