@@ -51,6 +51,4 @@ Temporary Items
 *.log
 *.Rhistory
 *.html
-
-# Custom Folders
-deprecated
+*.csv
