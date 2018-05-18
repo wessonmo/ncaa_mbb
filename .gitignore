@@ -50,12 +50,7 @@ Temporary Items
 *.pyc
 *.log
 *.Rhistory
+*.html
 
 # Custom Folders
 deprecated\
-ncaa_data\html\box_score\*
-ncaa_data\html\pbp\*
-ncaa_data\html\roster\*
-ncaa_data\html\summary\*
-ncaa_data\html\team_index\*
-ncaa_data\html\team_info\*
