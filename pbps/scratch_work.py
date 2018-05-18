@@ -11,6 +11,8 @@ game_ids = pd.read_csv('ncaa_data\\csv\\schedules.csv')
 #game_ids with 2 DI teams
 game_id_set = pd.merge(game_ids.loc[~pd.isnull(game_ids.school_id) & ~pd.isnull(game_ids.opp_id)], rosters[['season_id','school_id']].drop_duplicates(), how = 'left', on = ['season_id','school_id'], indicator = 'school')\
     .merge(rosters[['season_id','school_id']].drop_duplicates(), how = 'left', left_on = ['season_id','opp_id'], right_on = ['season_id','school_id'], indicator = 'opp')
+game_id_season = game_id_set.loc[:,['season_id','game_id']].drop_duplicates()  
+    
 game_id_set = set(game_id_set.loc[(game_id_set.school == 'both') & (game_id_set.opp == 'both')].game_id)
 
 box_scores = pd.read_csv('ncaa_data\\csv\\box_scores.csv')
@@ -18,10 +20,12 @@ box_scores = box_scores.loc[box_scores.game_id.isin(game_id_set) & ~pd.isnull(bo
 
 pbps_raw = pd.read_csv('ncaa_data\\csv\\pbps.csv')
 pbps_raw = pbps_raw.loc[~pd.isnull(pbps_raw.period)]
-pbps_raw = pbps_raw.loc[pbps_raw.game_id.isin(game_id_set)]
+pbps_raw = pbps_raw.loc[pbps_raw.game_id.isin(box_scores.game_id.unique())]
 pbps_raw = pbps_raw.loc[~pbps_raw.game_id.isin([4274098, 4042151,1449131,2833067])]
 
 pbps = pbps_raw.copy()
+
+pbps.loc[:,'order'] = pbps.groupby('game_id').cumcount()
 
 
 #season stuff
@@ -80,7 +84,7 @@ for school in [1,2]:
     temp.loc[:,'shot'] = temp.event.apply(lambda x: re.compile('made|missed').search(x).group(0)
             if re.compile('made|missed').search(x) else None)
 
-    temp = temp.loc[:,['season_id','game_id','period','seconds_remaining','school_id','school_points','opp_points',
+    temp = temp.loc[:,['season_id','game_id','order','period','seconds_remaining','school_id','school_points','opp_points',
                        'event','player_name','event_type','shot']]
 
     pbps2 = pd.concat([pbps2, temp]) if 'pbps2' in locals().keys() else temp
@@ -142,52 +146,102 @@ else:
         
 
 pbps3 = pd.merge(pbps2, player_names.drop('ncaa_id', axis = 1), how = 'left', on = ['season_id', 'school_id', 'player_name'])
+pbps3.loc[:,'sub_event'] = pbps3.event_type.apply(lambda x: True if x in ['Enters Game','Leaves Game'] else False)
+pbps3.loc[:,'pot_deadball_event'] = pbps3.event_type.apply(lambda x: True if x in
+          ['Commits Foul','Deadball Rebound','Free Throw','Media Timeout','Second Timeout','Team Timeout','Timeout',
+           'Tip In','Turnover'] else False)
+pbps3.sort_values(['season_id','game_id','period','seconds_remaining'], ascending = [True,True,True,False]).reset_index()
+
 
 
 ##lineup determinations
+#lineup = pd.merge(lineup, game_id_season, how = 'left', on = 'game_id')
+                        
+                        
+                        
 starters = box_scores.loc[box_scores.order <= 4,['game_id','period','school_id','player_id']].copy()
 starters.loc[:,'event_type'] = 'Enters Game'
 starters.loc[:,'seconds_remaining'] = starters.period.apply(lambda x: (3 - x)*20*60)
 
-lineup = pd.concat([starters,pbps3.loc[~pd.isnull(pbps3.player_id),['game_id','period','school_id','player_id','event_type','seconds_remaining']]])\
-    .sort_values(['game_id','school_id','period','seconds_remaining'], ascending = [True, True, True,False]).reset_index(drop = True)
+lineup = pd.concat([starters,pbps3.sort_values(['game_id','school_id','period','seconds_remaining'], ascending = [True, True, True,False]).reset_index(drop = True)
+    
 
-lineup.loc[:,'sub_event'] = lineup.event_type.apply(lambda x: True if x in ['Enters Game','Leaves Game'] else False)
-lineup.sort_values(['game_id','school_id','period','seconds_remaining','sub_event'], ascending = [True, True, True,False,True], inplace = True)
 
-phase_ids = lineup.loc[lineup.sub_event,['game_id', 'period', 'seconds_remaining','sub_event']].drop_duplicates().sort_values(['game_id', 'period', 'seconds_remaining'], ascending = [True, True, False])
+#lineup.loc[:,'sub_event'] = lineup.event_type.apply(lambda x: True if x in ['Enters Game','Leaves Game'] else False)
+#lineup.loc[:,'pot_deadball_event'] = lineup.event_type.apply(lambda x: True if x in
+#          ['Commits Foul','Deadball Rebound','Free Throw','Media Timeout','Second Timeout','Team Timeout','Timeout',
+#           'Tip In','Turnover'] else False)
+lineup.loc[~lineup.sub_event & (lineup.seconds_remaining == 2400),'seconds_remaining'] = 2399
+lineup.sort_values(['season_id','school_id','game_id','school_id','period','seconds_remaining','sub_event'], ascending = [True,True,True, True, True,False,True], inplace = True)
+
+phase_ids = lineup.loc[lineup.sub_event,['season_id','school_id','game_id', 'period', 'seconds_remaining','sub_event']]\
+    .drop_duplicates().sort_values(['season_id','school_id','game_id', 'period', 'seconds_remaining'],
+                    ascending = [True, True, True, True, False])
 phase_ids.loc[:,'phase_id'] = range(len(phase_ids))
 
-lineup = pd.merge(lineup, phase_ids, how = 'left', on = ['game_id','period','seconds_remaining','sub_event'])\
-    .sort_values(['game_id', 'period', 'seconds_remaining','sub_event'], ascending = [True, True, False, True]).reset_index(drop = True)
-lineup.loc[:,'phase_id'] = lineup.phase_id.ffill()
+lineup = pd.merge(lineup, phase_ids, how = 'left', on = ['season_id','school_id','game_id','period','seconds_remaining','sub_event'])\
+    .sort_values(['season_id','school_id','game_id', 'period', 'seconds_remaining','sub_event'], ascending = [True, True, True, True, False, True]).reset_index(drop = True)
+lineup.loc[:,'phase_id'] = lineup.groupby(['season_id','school_id','game_id']).phase_id.ffill()
 
-for game_id in sorted(lineup.game_id.unique()):
-    for school_id in sorted(lineup.loc[lineup.game_id == game_id].school_id.unique()):
-        game_data = lineup.loc[(lineup.game_id == game_id) & (lineup.school_id == school_id)]
-        for id_ in game_data.player_id.unique(): game_data.loc[:, str(int(id_))] = None
+for season_id in lineup.season_id.unique():
+    for school_id in lineup.loc[lineup.season_id == season_id].school_id.unique():
+        team_data = lineup.loc[(lineup.season_id == season_id) & (lineup.school_id == school_id)]\
+            .sort_values(['game_id', 'period', 'seconds_remaining','sub_event'], ascending = [True, True, False, True]).reset_index(drop = True)
         
-        for phase_id in sorted(lineup.loc[(lineup.game_id == game_id) & (lineup.school_id == school_id)].phase_id.unique()):
-            for index, row in game_data.loc[(game_data.phase_id == phase_id) & game_data.sub_event].iterrows():
-                game_data.loc[index, str(int(row.player_id))] = 1 if row.event_type == 'Enters Game' else 0
+        for player_id in team_data.player_id.unique():
+            team_data.loc[team_data.sub_event, str(int(player_id))] =\
+                team_data.loc[team_data.sub_event].apply(lambda x: (1 if x.event_type == 'Enters Game' else 0)
+                    if x.player_id == player_id else None, axis = 1)
             
-        for id_ in game_data.player_id.unique():
-            game_data.loc[:, str(int(id_))] = game_data.groupby('period')[str(int(id_))].ffill()
-            game_data.loc[:, str(int(id_))] = game_data.groupby('period')[str(int(id_))].fillna(0)
-            
-        game_data.loc[:,'lineup_count'] = game_data.apply(lambda x:
-            sum([x[str(int(col))] for col in game_data.player_id.unique()]), axis = 1)
-            
-        broken_events = game_data.loc[(game_data.lineup_count != 5) & ~game_data.sub_event].phase_id.unique()
-        if len(broken_events) > 0:
-            break
-        else:
-            print(game_id, school_id, len(broken_events))
+            team_data.loc[:, str(int(player_id))] = team_data.groupby(['game_id','period'])[str(int(player_id))].ffill()
+            team_data.loc[:, str(int(player_id))] = team_data.loc[:,str(int(player_id))].fillna(0)
         
-        game_data.loc[game_data.phase_id == 10]
-lineup.head(25)
+        team_data.loc[:,'lineup_count'] = team_data.apply(lambda x:
+            sum([x[str(int(col))] for col in team_data.player_id.unique()]), axis = 1)
+            
+        for player_id in team_data.player_id.unique():
+            miss_sub_in = team_data.loc[~team_data.sub_event & (team_data.player_id == player_id) & (team_data[str(int(player_id))] == 0)]
+            if len(miss_sub_in) > 0:
+                print('missing sub in')
+                break
+            
+        team_data.loc[~team_data.sub_event & (team_data.lineup_count != 5)].phase_id.unique()
+        team_data.loc[team_data.phase_id == 7233]
+#        team_data.loc[:,'lineup_error'] = team_data.apply(lambda x:
+#            False if sum([x[str(int(col))] for col in team_data.player_id.unique()]) == 5 else True, axis = 1)
+            
+        
+            
+        
+        
+        
 
-
+#for game_id in sorted(lineup.game_id.unique()):
+#    for school_id in sorted(lineup.loc[lineup.game_id == game_id].school_id.unique()):
+#        game_data = lineup.loc[(lineup.game_id == game_id) & (lineup.school_id == school_id)]
+#        for id_ in game_data.player_id.unique(): game_data.loc[:, str(int(id_))] = None
+#        
+#        for phase_id in sorted(lineup.loc[(lineup.game_id == game_id) & (lineup.school_id == school_id)].phase_id.unique()):
+#            for index, row in game_data.loc[(game_data.phase_id == phase_id) & game_data.sub_event].iterrows():
+#                game_data.loc[index, str(int(row.player_id))] = 1 if row.event_type == 'Enters Game' else 0
+#            
+#        for id_ in game_data.player_id.unique():
+#            game_data.loc[:, str(int(id_))] = game_data.groupby('period')[str(int(id_))].ffill()
+#            game_data.loc[:, str(int(id_))] = game_data.groupby('period')[str(int(id_))].fillna(0)
+#            
+#        game_data.loc[:,'lineup_count'] = game_data.apply(lambda x:
+#            sum([x[str(int(col))] for col in game_data.player_id.unique()]), axis = 1)
+#            
+#        broken_events = game_data.loc[(game_data.lineup_count != 5) & ~game_data.sub_event].phase_id.unique()
+#        if len(broken_events) > 0:
+#            break
+#        else:
+#            print(game_id, school_id, len(broken_events))
+#            
+#        for phase_id in sorted(lineup.loc[(lineup.game_id == game_id) & (lineup.school_id == school_id)].phase_id.unique()):
+#            game_data.loc[(game_data.phase_id == phase_id) & ~game_data.sub_event]
+#
+#lineup.loc[pd.isnull(lineup.school_id)]
 
 
 

@@ -1,215 +1,208 @@
-from __future__ import print_function
-import sys
-import parsers
-import pandas as pd
-from collections import OrderedDict
-import re
+from print_status import print_status
 import os
-import multiprocessing as mp
+import re
+import requests
+import pandas as pd
+from requests.exceptions import ConnectionError, ConnectTimeout, ReadTimeout
+import time
+
+
+def url_req(url):
+    header = {'User-Agent': ('Mozilla/5.0 (Windows NT 6.1)'
+                             'AppleWebKit/537.2 (KHTML, like Gecko)'
+                             'Chrome/22.0.1216.0 Safari/537.2')}
+    
+    for i in range(5):
+        try:
+            req = requests.get(url, headers = header, timeout = 5 + i*5)
+            if re.compile('access denied', re.I).search(req.content):
+                time.sleep(300)
+                continue
+            break
+        except (ConnectionError, ConnectTimeout, ReadTimeout) as to:
+            if i == 4:
+                raise to
+            else:
+                continue
+     
+    return req.content
+    
 
 #team scrapers
 def team_indexes(seasons, divisions):
-    print(' {0: >14}:'.format('Team Indexes'), end = '\r')
+    file_type = 'Team Indexes'
+    html_path = 'html\\team_index\\{0}_{1}.html'
+    base_url = 'http://stats.ncaa.org/team/inst_team_list?academic_year={0}&conf_id=-1&division={1}&sport_code=MBB'
     
-    file_loc = 'csv\\team_index.csv'
-    file_exist = os.path.isfile(file_loc)
-    indexes = pd.read_csv(file_loc) if file_exist else pd.DataFrame(columns = ['season','division'])
-    miss_seasons = set((x,y) for x in seasons for y in divisions) - set(zip(indexes.season, indexes.division))
+    all_indexes = set((x,y) for x in seasons for y in divisions)
+    indexes_needed = [x for x in all_indexes if not os.path.exists(html_path.format(*x))]
 
-    completed, needed = len(set(zip(indexes.season, indexes.division))), len(set((x,y) for x in seasons for y in divisions))
-    sys.stdout.flush()
-    print(' {0: >14}: {1: >7}/{2: <7}'.format('Team Indexes',completed, needed), end = '\r')
-
-    for season, division in miss_seasons:
-        output = parsers.team_index(season, division)
-
-        with open(file_loc, 'ab' if file_exist else 'wb') as csv_file:
-            output.to_csv(csv_file, header = not file_exist, index = False)
-        file_exist = True
-
-        completed += 1
-        sys.stdout.flush()
-        print(' {0: >14}: {1: >7}/{2: <7}'.format('Team Indexes',completed, needed), end = '\r')
-
-    sys.stdout.flush()
-    print(' {0: >14}: {1: >7}/{2: <7}'.format('Team Indexes',completed, needed))
-
-
-def rosters():
-    print(' {0: >14}:'.format('Rosters'), end = '\r')
-
-    indexes = pd.read_csv('csv\\team_index.csv')[['season_id','school_id']]
-
-    roster_loc = 'csv\\rosters.csv'
-    roster_exist = os.path.isfile(roster_loc)
-    rosters = set((row.season_id, row.school_id) for index, row in pd.read_csv(roster_loc)[['season_id','school_id']].iterrows())\
-        if roster_exist else set()
-    miss_rosters = list(set(zip(indexes.season_id, indexes.school_id)) - rosters)
-
-    completed, needed = len(rosters), len(set(zip(indexes.season_id, indexes.school_id)))
-    sys.stdout.flush()
-    print(' {0: >14}: {1: >7}/{2: <7}'.format('Rosters',completed, needed), end = '\r')
+    completed, total = len(all_indexes) - len(indexes_needed), len(all_indexes)
+    if len(indexes_needed) > 0:
+        print_status(file_type, 'scrape', completed, total, stage = 0)
     
-    for season_id, school_id in miss_rosters:
-        output = parsers.roster(season_id, school_id)
-
-        with open(roster_loc, 'ab' if roster_exist else 'wb') as csv_file:
-            output.to_csv(csv_file, header = not roster_exist, index = False)
-        roster_exist = True
-
-        completed += 1
-        sys.stdout.flush()
-        print(' {0: >14}: {1: >7}/{2: <7}'.format('Rosters',completed, needed), end = '\r')
-
-    sys.stdout.flush()
-    print(' {0: >14}: {1: >7}/{2: <7}'.format('Rosters',completed, needed))
-
-
-def team_info():
-    print(' {0: >14}:'.format('Team Info'), end = '\r')
-
-    indexes = pd.read_csv('csv\\team_index.csv')[['season','season_id','school_id']]
-
-    for var_name in ['coaches','schedules','facilities']:
-        file_loc = 'csv\\{0}.csv'.format(var_name)
-        file_exist = os.path.isfile(file_loc)
-
-        if file_exist:
-            file_df = pd.read_csv(file_loc)[['season_id','school_id']].drop_duplicates()
+        for season, division in indexes_needed:
+            try:
+                resp = url_req(base_url.format(season, division))
+            except (ConnectionError, ConnectTimeout, ReadTimeout):
+                continue
+                
+            if re.compile('internal server error').search(resp) == None:
+                with open(html_path.format(season, division), 'wb') as f: f.write(resp)
+            else: continue
             
-            indexes = pd.merge(indexes, file_df, how = 'left', on = ['season_id','school_id'], indicator = var_name)
-        else:
-            indexes.loc[:,var_name] = 'left_only'
+            completed += 1
+            print_status(file_type, 'scrape', completed, total, stage = 1)
     
-    miss_info = indexes.loc[indexes.apply(lambda x: 'left_only' in list(x), axis = 1)]
+    print_status(file_type, 'scrape', completed, total, stage = 2)
+    
 
-    completed, needed = len(indexes) - len(miss_info), len(indexes)
-    sys.stdout.flush()
-    print(' {0: >14}: {1: >7}/{2: <7}'.format('Team Info',completed, needed), end = '\r')
+def team_info(engine):
+    file_type = 'Team Info'
+    html_path = 'html\\team_info'
+    
+    sql = pd.read_sql_table('team_index', engine, schema = 'raw_data')
+    
+    all_teams = set(zip(sql.season_id, sql.school_id))
+    scraped_teams = set((int(x[:-5].split('_')[0]),int(x[:-5].split('_')[1])) for x in os.listdir(html_path))
+    remain_teams = all_teams - scraped_teams
 
-    for index, row in miss_info.iterrows():
-        dict_ = parsers.team_info(row)
-
-        for file_type in dict_.keys():
-            df = dict_[file_type]
+    completed, total = len(scraped_teams), len(all_teams)
+    if len(remain_teams) > 0:
+        print_status(file_type, 'scrape', completed, total, stage = 0)
+    
+        for season_id, school_id in remain_teams:
+            try:
+                resp = url_req('http://stats.ncaa.org/team/{0}/{1}'.format(school_id, season_id))
+            except (ConnectionError, ConnectTimeout, ReadTimeout):
+                continue
             
-            file_loc = 'csv\\{0}.csv'.format(file_type)
-            exist = os.path.isfile(file_loc)
+            if re.compile('internal server error').search(resp) == None:
+                with open('{0}\\{1}_{2}.html'.format(html_path, season_id, school_id), 'wb') as f: f.write(resp)
+            else: continue
             
-            with open(file_loc, 'ab' if exist else 'wb') as csv_file:
-                df.to_csv(csv_file, header = not exist, index = False)
+            completed += 1
+            print_status(file_type, 'scrape', completed, total, stage = 1)
+    
+    print_status(file_type, 'scrape', completed, total, stage = 2)
 
-        completed += 1
-        sys.stdout.flush()
-        print(' {0: >14}: {1: >7}/{2: <7}'.format('Team Info',completed, needed), end = '\r')
 
-    sys.stdout.flush()
-    print(' {0: >14}: {1: >7}/{2: <7}'.format('Team Info',completed, needed))
+def rosters(engine):
+    file_type = 'Rosters'
+    html_path = 'html\\roster'
+    
+    sql = pd.read_sql_table('team_index', engine, schema = 'raw_data')
+    
+    all_teams = set(zip(sql.season_id, sql.school_id))
+    scraped_teams = set((int(x[:-5].split('_')[0]),int(x[:-5].split('_')[1])) for x in os.listdir(html_path))
+    remain_teams = all_teams - scraped_teams
+
+    completed, total = len(scraped_teams), len(all_teams)
+    if len(remain_teams) > 0:
+        print_status(file_type, 'scrape', completed, total, stage = 0)
+    
+        for season_id, school_id in remain_teams:
+            try:
+                resp = url_req('http://stats.ncaa.org/team/{0}/roster/{1}'.format(school_id, season_id))
+            except (ConnectionError, ConnectTimeout, ReadTimeout):
+                continue
+            
+            if re.compile('internal server error').search(resp) == None:
+                with open('{0}\\{1}_{2}.html'.format(html_path, season_id, school_id), 'wb') as f: f.write(resp)
+            else: continue
+            
+            completed += 1
+            print_status(file_type, 'scrape', completed, total, stage = 1)
+    
+    print_status(file_type, 'scrape', completed, total, stage = 2)
 
 
 #game scrapers
-def game_summaries():
-    print(' {0: >14}:'.format('Game Summaries'), end = '\r')
-
-    game_ids = set(row.game_id for index, row in pd.read_csv('csv\\schedules.csv').iterrows() if not pd.isnull(row.game_id))
-
-    summary_loc = 'csv\\game_summaries.csv'
-    summary_exist = os.path.isfile(summary_loc)
-    summaries = set(pd.read_csv(summary_loc).game_id) if summary_exist else set()
-    miss_summaries = list(game_ids - summaries)
-
-    completed, needed = len(summaries), len(game_ids)
-    sys.stdout.flush()
-    print(' {0: >14}: {1: >7}/{2: <7}'.format('Game Summaries',completed, needed), end = '\r')
-
-    for game_id in miss_summaries:
-        output = parsers.game_summary(game_id)
-
-        with open(summary_loc, 'ab' if summary_exist else 'wb') as csv_file:
-            output.to_csv(csv_file, header = not summary_exist, index = False)
-        summary_exist = True
-
-        completed += 1
-        sys.stdout.flush()
-        print(' {0: >14}: {1: >7}/{2: <7}'.format('Game Summaries',completed, needed), end = '\r')
-
-    sys.stdout.flush()
-    print(' {0: >14}: {1: >7}/{2: <7}'.format('Game Summaries',completed, needed))
-
-
-def box_scores():
-    print(' {0: >14}:'.format('Box Scores'), end = '\r')
-
-    game_ids = set(row.game_id for index, row in pd.read_csv('csv\\schedules.csv').iterrows() if not pd.isnull(row.game_id))
-
-    box_loc = 'csv\\box_scores.csv'
-    box_exist = os.path.isfile(box_loc)
-    box_scores = set(pd.read_csv(box_loc).game_id) if box_exist else set()
-    miss_boxes = list(game_ids - box_scores)
-
-    completed, needed = len(box_scores), len(game_ids)
-    sys.stdout.flush()
-    print(' {0: >14}: {1: >7}/{2: <7}'.format('Box Scores',completed, needed), end = '\r')
-
-    for game_id in miss_boxes:
-        output = parsers.box_score(game_id)
-
-        if len(output) == 0:
-            continue
-
-        with open(box_loc, 'ab' if box_exist else 'wb') as csv_file:
-            output.to_csv(csv_file, header = not box_exist, index = False)
-        box_exist = True
-
-        completed += 1
-        sys.stdout.flush()
-        print(' {0: >14}: {1: >7}/{2: <7}'.format('Box Scores',completed, needed), end = '\r')
-
-    sys.stdout.flush()
-    print(' {0: >14}: {1: >7}/{2: <7}'.format('Box Scores',completed, needed))
-
-
-def game_info():
-    print(' {0: >14}:'.format('Game Info'), end = '\r')
-
-    game_ids = pd.read_csv('csv\\schedules.csv')[['game_id']].drop_duplicates()
-    game_ids = game_ids.loc[~pd.isnull(game_ids.game_id),:]
-
-    for var_name in ['game_times','game_locs','officials','pbps']:
-        file_loc = 'csv\\{0}.csv'.format(var_name)
-        file_exist = os.path.isfile(file_loc)
-
-        if file_exist:
-            file_df = pd.read_csv(file_loc)[['game_id']].drop_duplicates()
-            
-            game_ids = pd.merge(game_ids, file_df, how = 'left', on = ['game_id'], indicator = var_name)
-        else:
-            game_ids.loc[:,var_name] = 'left_only'
+def pbps(engine):
+    file_type = 'Play-by-plays'
+    html_path = 'html\\pbp'
     
-    miss_info = game_ids.loc[game_ids.apply(lambda x: 'left_only' in list(x), axis = 1)]
+    sql = pd.read_sql_table('schedules', engine, schema = 'raw_data')
+    
+    all_games = set(sql.loc[~pd.isnull(sql.game_id)].game_id)
+    scraped_games = set(int(x[:-5]) for x in os.listdir(html_path))
+    remain_games = all_games - scraped_games
 
-    completed, needed = len(game_ids) - len(miss_info), len(game_ids)
-    sys.stdout.flush()
-    print(' {0: >14}: {1: >7}/{2: <7}'.format('Game Info',completed, needed), end = '\r')
-
-    for index, row in miss_info.iterrows():
-        dict_ = parsers.game_info(row)
-
-        for file_type in dict_.keys():
-            df = dict_[file_type]
+    completed, total = len(scraped_games), len(all_games)
+    if len(remain_games) > 0:
+        print_status(file_type, 'scrape', completed, total, stage = 0)
+    
+        for game_id in remain_games:
+            try:
+                resp = url_req('http://stats.ncaa.org/game/play_by_play/{0}'.format(game_id))
+            except (ConnectionError, ConnectTimeout, ReadTimeout):
+                continue
             
-            file_loc = 'csv\\{0}.csv'.format(file_type)
-            exist = os.path.isfile(file_loc)
+            if re.compile('internal server error').search(resp) == None:
+                with open('{0}\\{1}.html'.format(html_path, game_id), 'wb') as f: f.write(resp)
+            else: continue
             
-            with open(file_loc, 'ab' if exist else 'wb') as csv_file:
-                df.to_csv(csv_file, header = not exist, index = False)
+            completed += 1
+            print_status(file_type, 'scrape', completed, total, stage = 1)
+    
+    print_status(file_type, 'scrape', completed, total, stage = 2)
+    
 
-        completed += 1
-        sys.stdout.flush()
-        print(' {0: >14}: {1: >7}/{2: <7}'.format('Game Info',completed, needed), end = '\r')
+def game_summaries(engine):
+    file_type = 'Game Summaries'
+    html_path = 'html\\summary'
+    
+    sql = pd.read_sql_table('schedules', engine, schema = 'raw_data')
+    
+    all_games = set(sql.loc[~pd.isnull(sql.game_id)].game_id)
+    scraped_games = set(int(x[:-5]) for x in os.listdir(html_path))
+    remain_games = all_games - scraped_games
 
-    sys.stdout.flush()
-    print(' {0: >14}: {1: >7}/{2: <7}'.format('Game Info',completed, needed))
+    completed, total = len(scraped_games), len(all_games)
+    if len(remain_games) > 0:
+        print_status(file_type, 'scrape', completed, total, stage = 0)
+    
+        for game_id in remain_games:
+            try:
+                resp = url_req('http://stats.ncaa.org/game/period_stats/{0}'.format(game_id))
+            except (ConnectionError, ConnectTimeout, ReadTimeout):
+                continue
+            
+            if re.compile('internal server error').search(resp) == None:
+                with open('{0}\\{1}.html'.format(html_path, game_id), 'wb') as f: f.write(resp)
+            else: continue
+            
+            completed += 1
+            print_status(file_type, 'scrape', completed, total, stage = 1)
+    
+    print_status(file_type, 'scrape', completed, total, stage = 2)
 
-if __name__ == '__main__':
-    pass
+
+def box_scores(engine):
+    file_type = 'Box Scores'
+    html_path = 'html\\box_score'
+        
+    sql = pd.read_sql_table('schedules', engine, schema = 'raw_data')
+    
+    all_halves = set((x, y) for x in set(sql.loc[~pd.isnull(sql.game_id)].game_id) for y in [1,2])
+    scraped_halves = set((int(x[:-5].split('_')[0]), int(x[:-5].split('_')[1])) for x in os.listdir(html_path))
+    remain_halves = all_halves - scraped_halves
+
+    completed, total = len(scraped_halves), len(all_halves)
+    if len(remain_halves) > 0:
+        print_status(file_type, 'scrape', completed, total, stage = 0)
+    
+        for game_id, period in remain_halves:
+            try:
+                resp = url_req('http://stats.ncaa.org/game/box_score/{0}?period_no={1}'.format(game_id, period))
+            except (ConnectionError, ConnectTimeout, ReadTimeout):
+                continue
+            
+            if re.compile('internal server error').search(resp) == None:
+                with open('{0}\\{1}_{2}.html'.format(html_path, game_id, period), 'wb') as f: f.write(resp)
+            else: continue
+            
+            completed += 1
+            print_status(file_type, 'scrape', completed, total, stage = 1)
+    
+    print_status(file_type, 'scrape', completed, total, stage = 2)
