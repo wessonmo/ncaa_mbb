@@ -1,6 +1,9 @@
 import pandas as pd
+import sqlalchemy
 
-rosters = pd.read_csv('ncaa_data\\csv\\rosters.csv')
+engine = sqlalchemy.create_engine('postgresql://postgres:@localhost:5432/ncaa_mbb')
+
+rosters = pd.read_sql_table('rosters', engine, schema = 'raw_data')
 
 rosters.loc[:,'ncaa_id'] = rosters.player_id.apply(lambda x: True if not pd.isnull(x) else False)
 
@@ -9,5 +12,5 @@ max_id = rosters.loc[rosters.ncaa_id].player_id.max()
 
 rosters.loc[~rosters.ncaa_id,'player_id'] = [x + max_id for x in range(len_miss)]
 
-with open('rosters\\csv\\imputed_rosters.csv', 'wb') as csvfile:
-    rosters.to_csv(csvfile, header = True, index = False)
+engine.execute('create schema if not exists imputed_data;')
+rosters.to_sql('rosters', engine, schema = 'imputed_data', if_exists = 'append', index = False)
