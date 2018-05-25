@@ -1,7 +1,7 @@
 from __future__ import print_function
 from utils.url_req import url_req
 from utils.print_update import print_update
-import new_parsers
+import parsers
 import os
 from requests.exceptions import ConnectionError, ConnectTimeout, ReadTimeout
 from abc import ABCMeta
@@ -30,7 +30,7 @@ class data_obj(object):
     def _create_storage_folder(self):
         if not os.path.exists(self.html_path): os.makedirs(self.html_path)
 
-    def _define_all_pages(self):
+    def _define_all_webpages(self):
         sql = pd.read_sql_table(self.scrape_table, self.engine, schema = self.schema_name)
         if len(self.scrape_ids) == 1:
             self.all_pages = set(sql[self.scrape_ids[0]])
@@ -39,22 +39,21 @@ class data_obj(object):
         else:
             raise ValueError('too many parameters')
 
-    def _define_scraped_pages(self):
+    def _define_scraped_webpages(self):
         if len(self.scrape_ids) == 1:
-            self.scraped_pages = set(x[:-5] for x in os.listdir(self.html_path))
+            self.scraped_pages = set(int(x[:-5]) for x in os.listdir(self.html_path))
         elif len(self.scrape_ids) == 2:
             self.scraped_pages = set((int(y), int(z)) for y, z in
                                      [x[:-5].split('_') for x in os.listdir(self.html_path)])
         else:
             raise ValueError('too many parameters')
 
-
-    def _define_remain_pages(self):
+    def _define_remain_webpages(self):
         self.remain_pages = list(self.all_pages - self.scraped_pages)
-        
+
         self.completed, self.total = len(self.scraped_pages), len(self.all_pages)
 
-    def _scrape_remain_pages(self):
+    def _scrape_remain_webpages(self):
         if len(self.remain_pages) > 0:
             is_tuple = isinstance(self.remain_pages[0], tuple)
             write_path = '{0}\\{1}.html'.format(self.html_path, '{0}_{1}' if is_tuple else '{0}')
@@ -78,16 +77,16 @@ class data_obj(object):
 
     def scrape_data(self):
         self._create_storage_folder()
-        self._define_all_pages()
-        self._define_scraped_pages()
-        self._define_remain_pages()
-        self._scrape_remain_pages()
+        self._define_all_webpages()
+        self._define_scraped_webpages()
+        self._define_remain_webpages()
+        self._scrape_remain_webpages()
 
 
-    def _define_all_htmls(self):
+    def _define_all_html_files(self):
         self.all_htmls = set(os.listdir(self.html_path))
 
-    def _define_parsed_htmls(self):
+    def _define_parsed_html_files(self):
         try:
             sql = pd.read_sql_table(self.data_type, self.engine, schema = self.schema_name)
             pre_string =  '{0}.html'.format('{0}_{1}' if len(self.parse_ids) == 2 else '{0}')
@@ -98,12 +97,12 @@ class data_obj(object):
             else:
                 raise err
 
-    def _define_remain_htmls(self):
+    def _define_remain_html_files(self):
         self.remain_htmls = list(self.all_htmls - self.parsed_htmls)
 
         self.completed, self.total = len(self.parsed_htmls), len(self.all_htmls)
 
-    def _parse_remain_htmls(self):
+    def _parse_remain_html_files(self):
         if len(self.remain_htmls) > 0:
             for file_name in self.remain_htmls:
                 with open('{0}\\{1}'.format(self.html_path, file_name), 'r') as html_file:
@@ -120,14 +119,14 @@ class data_obj(object):
         print('\t{0: >6} : {1: <14}'.format('Parse', 'Complete'))
 
     def _parser(self, file_name, soup):
-        parser = None
+        parser = getattr(parsers, data_type)
         parser(self.engine, self.data_type, self.schema_name, file_name, soup)
 
     def parse_data(self):
-        self._define_all_htmls()
-        self._define_parsed_htmls()
-        self._define_remain_htmls()
-        self._parse_remain_htmls()
+        self._define_all_html_files()
+        self._define_parsed_html_files()
+        self._define_remain_html_files()
+        self._parse_remain_html_files()
 
 
 class team_index(data_obj):
@@ -143,13 +142,8 @@ class team_index(data_obj):
         self.divisions = divisions
 
 
-    def _define_all_pages(self):
+    def _define_all_webpages(self):
         self.all_pages = set((x,y) for x in self.seasons for y in self.divisions)
-
-
-    def _parser(self, file_name, soup):
-        parser = new_parsers.parse_team_index
-        parser(self.engine, self.data_type, self.schema_name, file_name, soup)
 
 
 class team_info(data_obj):
@@ -159,7 +153,7 @@ class team_info(data_obj):
     scrape_ids = ['season_id', 'school_id']
 
 
-    def _define_remain_htmls(self):
+    def _define_remain_html_files(self):
         derived_file_types = ['coach', 'facility', 'schedule']
 
         self.remain_htmls = {key: derived_file_types for key in self.all_htmls}
@@ -179,7 +173,7 @@ class team_info(data_obj):
         self.completed, self.total = len(self.all_htmls) - len(self.remain_htmls.keys()), len(self.all_htmls)
 
 
-    def _parse_remain_htmls(self):
+    def _parse_remain_html_files(self):
         if len(self.remain_htmls) > 0:
             for file_name in self.remain_htmls:
                 with open('{0}\\{1}'.format(self.html_path, file_name), 'r') as html_file:
@@ -189,11 +183,14 @@ class team_info(data_obj):
 
                 for parse_data_type in ['facility', 'coach', 'schedule']:
                     if parse_data_type in self.remain_htmls[file_name]:
-                        getattr(new_parsers, 'parse_{0}'.format(parse_data_type))\
+                        getattr(parsers, parse_data_type)\
                             (self.engine, parse_data_type, self.schema_name, file_name, soup)
 
                 self.completed += 1
                 print_update('Parse', self.completed, self.total)
+
+        stdout.flush()
+        print('\t{0: >6} : {1: <14}'.format('Parse', 'Complete'))
 
 
 class roster(data_obj):
@@ -203,21 +200,11 @@ class roster(data_obj):
     scrape_ids = ['season_id', 'school_id']
 
 
-    def _parser(self, file_name, soup):
-        parser = new_parsers.parse_roster
-        parser(self.engine, self.data_type, self.schema_name, file_name, soup)
-
-
 class summary(data_obj):
 
     base_url = 'http://stats.ncaa.org/game/period_stats/{0}'
     scrape_table = 'schedule'
     scrape_ids = ['game_id']
-
-
-    def _parser(self, file_name, soup):
-        parser = new_parsers.parse_summary
-        parser(self.engine, self.data_type, self.schema_name, file_name, soup)
 
 
 class box_score(data_obj):
@@ -227,13 +214,9 @@ class box_score(data_obj):
     scrape_ids = ['game_id', 'period']
 
 
-    def _define_all_pages(self):
+    def _define_all_webpages(self):
         sql = pd.read_sql_table(self.scrape_table, self.engine, schema = self.schema_name)
         self.all_pages = set((x, y) for x in set(sql[self.scrape_ids[0]]) for y in [1,2])
-
-    def _parser(self, file_name, soup):
-        parser = new_parsers.parse_box_score
-        parser(self.engine, self.data_type, self.schema_name, file_name, soup)
 
 
 class pbp(data_obj):
@@ -243,7 +226,7 @@ class pbp(data_obj):
     scrape_ids = ['game_id']
 
 
-    def _define_remain_htmls(self):
+    def _define_remain_html_files(self):
         derived_file_types = ['game_time', 'game_location', 'officials', 'pbp']
 
         self.remain_htmls = {key: derived_file_types for key in self.all_htmls}
@@ -262,7 +245,7 @@ class pbp(data_obj):
 
         self.completed, self.total = len(self.all_htmls) - len(self.remain_htmls.keys()), len(self.all_htmls)
 
-    def _parse_remain_htmls(self):
+    def _parse_remain_html_files(self):
         if len(self.remain_htmls) > 0:
             for file_name in self.remain_htmls:
                 with open('{0}\\{1}'.format(self.html_path, file_name), 'r') as html_file:
@@ -273,7 +256,7 @@ class pbp(data_obj):
                 for parse_data_type in ['game_time', 'game_location', 'officials', 'pbp']:
                     if parse_data_type in self.remain_htmls[file_name]:
                         try:
-                            getattr(new_parsers, 'parse_{0}'.format(parse_data_type))\
+                            getattr(parsers, 'parse_{0}'.format(parse_data_type))\
                                 (self.engine, parse_data_type, self.schema_name, file_name, soup)
                         except ValueError as err:
                             if re.compile('missing (period|event)s').search(str(err)):
@@ -283,3 +266,6 @@ class pbp(data_obj):
 
                 self.completed += 1
                 print_update('Parse', self.completed, self.total)
+
+        stdout.flush()
+        print('\t{0: >6} : {1: <14}'.format('Parse', 'Complete'))
