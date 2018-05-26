@@ -24,7 +24,6 @@ def team_index(engine, data_type, schema_name, file_name, soup):
 
     data.to_sql(data_type, engine, schema = schema_name, if_exists = 'append', index = False)
 
-
 def facility(engine, data_type, schema_name, file_name, soup):
     season_id, school_id = int(file_name[:-5].split('_')[-2]), int(file_name[:-5].split('_')[-1])
 
@@ -39,7 +38,6 @@ def facility(engine, data_type, schema_name, file_name, soup):
     data = pd.DataFrame(data)
 
     data.to_sql(data_type, engine, schema = schema_name, if_exists = 'append', index = False)
-
 
 def coach(engine, data_type, schema_name, file_name, soup):
     season_id, school_id = int(file_name[:-5].split('_')[-2]), int(file_name[:-5].split('_')[-1])
@@ -57,7 +55,6 @@ def coach(engine, data_type, schema_name, file_name, soup):
     data = pd.DataFrame(data)
 
     data.to_sql(data_type, engine, schema = schema_name, if_exists = 'append', index = False)
-
 
 def schedule(engine, data_type, schema_name, file_name, soup):
     season_id, school_id = int(file_name[:-5].split('_')[-2]), int(file_name[:-5].split('_')[-1])
@@ -89,7 +86,6 @@ def schedule(engine, data_type, schema_name, file_name, soup):
 
     data.to_sql(data_type, engine, schema = schema_name, if_exists = 'append', index = False)
 
-
 def roster(engine, data_type, schema_name, file_name, soup):
     season_id, school_id = int(file_name[:-5].split('_')[-2]), int(file_name[:-5].split('_')[-1])
 
@@ -112,7 +108,6 @@ def roster(engine, data_type, schema_name, file_name, soup):
 
     data.to_sql(data_type, engine, schema = schema_name, if_exists = 'append', index = False)
 
-
 def summary(engine, data_type, schema_name, file_name, soup):
     game_id = int(file_name[:-5])
 
@@ -134,7 +129,6 @@ def summary(engine, data_type, schema_name, file_name, soup):
 
         data.to_sql(data_type, engine, schema = schema_name, if_exists = 'append', index = False)
 
-
 def box_score(engine, data_type, schema_name, file_name, soup):
     game_id, period = int(file_name[:-5].split('_')[0]), int(file_name[:-5].split('_')[1])
 
@@ -151,7 +145,11 @@ def box_score(engine, data_type, schema_name, file_name, soup):
         school_id = school_ids[i]
 
         players = [x.find_all('td') for x in team.find_all('tr', {'class': 'smtext'})]
-        if players == []: continue
+        if players == []:
+            query = 'INSERT INTO {0}.{1} (game_id, period, school_id) VALUES ({2}, {3}, {4})'\
+                .format(schema_name, data_type, game_id, period, school_id)
+            engine.execute(query)
+            continue
 
         var_list = [x.text.lower() for x in team.find('tr', {'class': 'grey_heading'}).find_all('th')]
 
@@ -180,7 +178,6 @@ def box_score(engine, data_type, schema_name, file_name, soup):
 
         data.to_sql(data_type, engine, schema = schema_name, if_exists = 'append', index = False)
 
-
 def game_time(engine, data_type, schema_name, file_name, soup):
     game_id = int(file_name[:-5])
 
@@ -191,7 +188,6 @@ def game_time(engine, data_type, schema_name, file_name, soup):
     data.to_sql(data_type, engine, schema = schema_name, if_exists = 'append', index = False,
                 dtype = {'game_time': sqlalchemy.types.VARCHAR})
 
-
 def game_location(engine, data_type, schema_name, file_name, soup):
     game_id = int(file_name[:-5])
 
@@ -201,7 +197,6 @@ def game_location(engine, data_type, schema_name, file_name, soup):
 
     data.to_sql(data_type, engine, schema = schema_name, if_exists = 'append', index = False)
 
-
 def officials(engine, data_type, schema_name, file_name, soup):
     game_id = int(file_name[:-5])
 
@@ -210,7 +205,6 @@ def officials(engine, data_type, schema_name, file_name, soup):
     data = pd.DataFrame([[game_id, officials]], columns = ['game_id','officials'])
 
     data.to_sql(data_type, engine, schema = schema_name, if_exists = 'append', index = False)
-
 
 def pbp(engine, data_type, schema_name, file_name, soup):
     game_id = int(file_name[:-5])
