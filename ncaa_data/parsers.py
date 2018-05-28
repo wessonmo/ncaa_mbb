@@ -26,8 +26,7 @@ def team_index(engine, data_type, schema_name, file_name, soup):
     data.to_sql(data_type, engine, schema = schema_name, if_exists = 'append', index = False)
 
 def conference(engine, data_type, schema_name, file_name, soup):
-    season, school_id = int(file_name[:-5].split('_')[0]), int(file_name[:-5].split('_')[1])
-
+    school_id = int(file_name[:-5].split('_')[1])
     seasons = range(params['mbb']['min_season'], params['mbb']['max_season'] + 1)
 
     table = soup.find('table', {'id': 'team_history_data_table'}).find('tbody')
