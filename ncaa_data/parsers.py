@@ -2,6 +2,7 @@ from collections import OrderedDict
 import re
 import pandas as pd
 import sqlalchemy
+from params import params
 
 arena_re = re.compile('(?<=Name: ).*')
 capacity_re = re.compile('(?<=Capacity: ).*')
@@ -20,6 +21,20 @@ def team_index(engine, data_type, schema_name, file_name, soup):
     data['school_id'] = [int(x.get('href').split('/')[2]) for x in schools]
     data['school_name'] = [x.text for x in schools]
     data['division'] = [division]*len(schools)
+    data = pd.DataFrame(data)
+
+    data.to_sql(data_type, engine, schema = schema_name, if_exists = 'append', index = False)
+
+def conference(engine, data_type, schema_name, file_name, soup):
+    school_id, seasons = int(file_name[:-5]), range(params['mbb']['min_season'], params['mbb']['max_season'] + 1)
+
+    table = soup.find('table', {'id': 'team_history_data_table'}).find('tbody')
+    rows = [x for x in table.find_all('tr') if int(x.find_all('td')[0].text[:4]) + 1 in seasons]
+    
+    data = OrderedDict()
+    data['season'] = [x for x in reversed(seasons)]
+    data['school_id'] = [school_id]*len(rows)
+    data['conference'] = [x.find_all('td')[3].text for x in rows]
     data = pd.DataFrame(data)
 
     data.to_sql(data_type, engine, schema = schema_name, if_exists = 'append', index = False)

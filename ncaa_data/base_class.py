@@ -1,35 +1,32 @@
 from __future__ import print_function
 from utils.url_req import url_req
 from utils.print_update import print_update
-from params import params
 import parsers
 import os
 from requests.exceptions import ConnectionError, ConnectTimeout, ReadTimeout
-import pandas as pd
 from bs4 import BeautifulSoup
 import re
 from sys import stdout
+import sqlalchemy
+from params import params
 
 
-class base_class(object):
+class base_data_type(object):
 
-    def __init__(self, schema_name, storage_dir, engine, data_type, href_frame, url_ids,
-                 parse_file_types=None, scrape_table=None, seasons=None, divisions=None):
-        self.schema_name = schema_name
-        self.storage_dir = storage_dir
+    def __init__(self, engine, data_type, href_frame, url_ids, parse_file_types=None, scrape_table=None):
         self.engine = engine
         self.data_type = data_type
         self.url_frame = 'http://stats.ncaa.org{0}'.format(href_frame)
         self.url_ids = url_ids
-        self.html_path = '{0}\\html\\{1}'.format(self.storage_dir, self.data_type)
+        self.parse_file_types = parse_file_types if parse_file_types else [data_type]
+        self.scrape_table = scrape_table
 
-        if parse_file_types:
-            self.parse_file_types = parse_file_types
-        else:
-            self.parse_file_types = [data_type]
-        if scrape_table: self.scrape_table = scrape_table
-        if seasons: self.seasons = seasons
-        if divisions: self.divisions = divisions
+        self.schema_name = params['ncaa_data']['schema_name']
+        self.storage_dir = params['mbb']['storage_dir']
+        self.seasons = range(params['mbb']['min_season'], params['mbb']['max_season'] + 1)
+        self.divisions = range(1, params['mbb']['max_division'] + 1)
+
+        self.html_path = '{0}\\html\\{1}'.format(self.storage_dir, self.data_type)
 
 
     def _create_storage_folder(self):
@@ -38,15 +35,21 @@ class base_class(object):
     def _define_all_webpages(self):
         if self.data_type == 'team_index':
             self.all_pages = set((x,y) for x in self.seasons for y in self.divisions)
-        elif self.data_type == 'box_score':
-            query = 'SELECT DISTINCT {0} FROM {1}.{2}'.format(self.url_ids[0] ,self.schema_name, self.scrape_table)
-            result = self.engine.execute(query)
-            self.all_pages = set((x, y) for x in [row[self.url_ids[0]] for row in result] for y in [1,2])
         else:
-            query = 'SELECT DISTINCT {0} FROM {1}.{2}'\
-                .format(', '.join(self.url_ids), self.schema_name, self.scrape_table)
+            query = 'SELECT DISTINCT {0} FROM {1}.{2}{3}'.format(
+                self.url_ids[0] if self.data_type == 'box_score' else ', '.join(self.url_ids),
+                self.schema_name,
+                self.scrape_table,
+                ' WHERE {0} = {1}'.format(self.url_ids[0], params['mbb']['max_season'])
+                    if self.data_type == 'conference' else ''
+                )
+
             result = self.engine.execute(query)
-            self.all_pages = set(tuple(row[key] for key in result.keys()) for row in result)
+
+            if self.data_type == 'box_score':
+                self.all_pages = set((x, y) for x in [row[self.url_ids[0]] for row in result] for y in [1,2])
+            else:
+                self.all_pages = set(tuple(row[key] for key in result.keys()) for row in result)
 
     def _define_scraped_webpages(self):
         self.scraped_pages = set(tuple(int(y) for y in x[:-5].split('_')) for x in os.listdir(self.html_path))
@@ -90,11 +93,12 @@ class base_class(object):
         try:
             result = self.engine.execute(query)
             self.parsed_htmls = set('{0}.html'.format('_'.join([str(y) for y in x])) for x in result)
-        except ValueError as err:
-            if str(err) == 'Table {0} not found'.format(self.data_type):
+        except sqlalchemy.exc.ProgrammingError as err:
+            if re.compile('relation "{0}.{1}" does not exist'.format(self.schema_name, self.data_type)).search(str(err)):
                 self.parsed_htmls = set()
             else:
                 raise err
+
 
     def _define_remain_html_files__single_parse(self):
         self.remain_htmls = list(self.all_htmls - self.parsed_htmls)
@@ -127,9 +131,9 @@ class base_class(object):
                 parsed_files = set('{0}.html'.format('_'.join([str(y) for y in x])) for x in result)
                 for p_file in parsed_files:
                     self.remain_htmls[p_file] = [x for x in self.remain_htmls[p_file] if x != file_type]
-            except ValueError as err:
-                if str(err) == 'Table {0} not found'.format(file_type):
-                    continue
+            except sqlalchemy.exc.ProgrammingError as err:
+                if re.compile('relation "{0}.{1}" does not exist'.format(self.schema_name, file_type)).search(str(err)):
+                    self.parsed_htmls = set()
                 else:
                     raise err
         for key in [key for key in self.remain_htmls if self.remain_htmls[key] == []]: del self.remain_htmls[key]
