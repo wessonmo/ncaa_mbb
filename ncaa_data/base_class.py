@@ -76,7 +76,7 @@ class base_data_type(object):
         stdout.flush()
         print('\t{0: >6} : {1: <14}'.format('Scrape', 'Complete'))
 
-    def scrape_data(self):
+    def scrape_to_file(self):
         self._create_storage_folder()
         self._define_all_webpages()
         self._define_scraped_webpages()
@@ -159,7 +159,7 @@ class base_data_type(object):
         stdout.flush()
         print('\t{0: >6} : {1: <14}'.format('Parse', 'Complete'))
 
-    def parse_data(self):
+    def parse_to_sql(self):
         self._define_all_html_files()
         if len(self.parse_file_types) == 1:
             self._define_parsed_html_files()
@@ -168,3 +168,25 @@ class base_data_type(object):
         else:
             self._define_remain_html_files__multi_parse()
             self._parse_remain_html_files__multi_parse()
+
+    def dedupe_sql(self):
+        for file_type in self.parse_file_types:
+            print('\t{0: >6} : {1: <14}'.format('Dedupe', 'Create Temp'), end = '\r')
+            query = 'DROP TABLE IF EXISTS temp_{0} CASCADE'.format(file_type, self.schema_name)
+            self.engine.execute(query)
+            query = 'CREATE TEMP TABLE temp_{0} AS SELECT DISTINCT * FROM {1}.{0}'.format(file_type, self.schema_name)
+            self.engine.execute(query)
+
+            print('\t{0: >6} : {1: <14}'.format('Dedupe', 'Drop Table'), end = '\r')
+            query = 'DROP TABLE IF EXISTS {0}.{1} CASCADE'.format(self.schema_name, file_type)
+            self.engine.execute(query)
+
+            print('\t{0: >6} : {1: <14}'.format('Dedupe', 'Create Table'), end = '\r')
+            query = 'CREATE TABLE {0}.{1} AS SELECT * FROM temp_{1}'.format(self.schema_name, file_type)
+            self.engine.execute(query)
+
+            print('\t{0: >6} : {1: <14}'.format('Dedupe', 'Drop Temp'), end = '\r')
+            query = 'DROP TABLE IF EXISTS temp_{0} CASCADE'.format(self.schema_name, file_type)
+            self.engine.execute(query)
+
+        print('\t{0: >6} : {1: <14}'.format('Dedupe', 'Complete'))

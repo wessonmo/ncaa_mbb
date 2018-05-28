@@ -28,8 +28,9 @@ def get_ncaa_data(engine):
             parse_file_types = pars['parse_file_types'],
             scrape_table = pars['scrape_table']
             )
-        data_type.scrape_data()
-        data_type.parse_data()
+        data_type.scrape_to_file()
+        data_type.parse_to_sql()
+        data_type.dedupe_sql()
 
 if __name__ == '__main__':
     create_db_if_not_exist(db_name=params['mbb']['db_name'])
