@@ -26,11 +26,13 @@ def team_index(engine, data_type, schema_name, file_name, soup):
     data.to_sql(data_type, engine, schema = schema_name, if_exists = 'append', index = False)
 
 def conference(engine, data_type, schema_name, file_name, soup):
-    school_id, seasons = int(file_name[:-5]), range(params['mbb']['min_season'], params['mbb']['max_season'] + 1)
+    season, school_id = int(file_name[:-5].split('_')[0]), int(file_name[:-5].split('_')[1])
+
+    seasons = range(params['mbb']['min_season'], params['mbb']['max_season'] + 1)
 
     table = soup.find('table', {'id': 'team_history_data_table'}).find('tbody')
     rows = [x for x in table.find_all('tr') if int(x.find_all('td')[0].text[:4]) + 1 in seasons]
-    
+
     data = OrderedDict()
     data['season'] = [x for x in reversed(seasons)]
     data['school_id'] = [school_id]*len(rows)
@@ -40,7 +42,7 @@ def conference(engine, data_type, schema_name, file_name, soup):
     data.to_sql(data_type, engine, schema = schema_name, if_exists = 'append', index = False)
 
 def facility(engine, data_type, schema_name, file_name, soup):
-    season_id, school_id = int(file_name[:-5].split('_')[-2]), int(file_name[:-5].split('_')[-1])
+    season_id, school_id = int(file_name[:-5].split('_')[0]), int(file_name[:-5].split('_')[1])
 
     fac_text = soup.find('div', {'id': 'facility_div'}).text
 
@@ -55,7 +57,7 @@ def facility(engine, data_type, schema_name, file_name, soup):
     data.to_sql(data_type, engine, schema = schema_name, if_exists = 'append', index = False)
 
 def coach(engine, data_type, schema_name, file_name, soup):
-    season_id, school_id = int(file_name[:-5].split('_')[-2]), int(file_name[:-5].split('_')[-1])
+    season_id, school_id = int(file_name[:-5].split('_')[0]), int(file_name[:-5].split('_')[1])
 
     coaches = soup.find('div', {'id': 'head_coaches_div'}).find('fieldset')
     coaches = coaches.find_all('fieldset') if coaches.find('fieldset') else [coaches]
@@ -72,7 +74,7 @@ def coach(engine, data_type, schema_name, file_name, soup):
     data.to_sql(data_type, engine, schema = schema_name, if_exists = 'append', index = False)
 
 def schedule(engine, data_type, schema_name, file_name, soup):
-    season_id, school_id = int(file_name[:-5].split('_')[-2]), int(file_name[:-5].split('_')[-1])
+    season_id, school_id = int(file_name[:-5].split('_')[0]), int(file_name[:-5].split('_')[1])
 
     schedule = soup.find('td', text = re.compile('schedule', re.I)).find_parent('table')
     games = [x for x in schedule.find_all('tr', {'class': None})
@@ -102,7 +104,7 @@ def schedule(engine, data_type, schema_name, file_name, soup):
     data.to_sql(data_type, engine, schema = schema_name, if_exists = 'append', index = False)
 
 def roster(engine, data_type, schema_name, file_name, soup):
-    season_id, school_id = int(file_name[:-5].split('_')[-2]), int(file_name[:-5].split('_')[-1])
+    season_id, school_id = int(file_name[:-5].split('_')[0]), int(file_name[:-5].split('_')[1])
 
     players = soup.find('th', text = re.compile('Roster')).find_parent('table').find('tbody').find_all('tr')
     players = [[y.contents[0] if y.contents else '' for y in x.find_all('td')] for x in players]
