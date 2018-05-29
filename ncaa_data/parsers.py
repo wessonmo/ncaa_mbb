@@ -1,7 +1,6 @@
 from collections import OrderedDict
 import re
 import pandas as pd
-import sqlalchemy
 from params import params
 
 arena_re = re.compile('(?<=Name: ).*')
@@ -10,7 +9,7 @@ record_re = re.compile('(?<=Record: )[0-9]+\-[0-9]+')
 ot_re = re.compile('(?<=\()[0-9]+(?=OT\))')
 school_id_re = re.compile('(?<=team\/)[0-9]+(?=\/)')
 
-def team_index(engine, data_type, schema_name, file_name, soup):
+def team_index(file_name, soup):
     season, division = int(file_name[:4]), int(file_name[5])
 
     schools = soup.find_all('a', href = re.compile('\/team\/[0-9]+\/[0-9]+$'))
@@ -21,11 +20,9 @@ def team_index(engine, data_type, schema_name, file_name, soup):
     data['school_id'] = [int(x.get('href').split('/')[2]) for x in schools]
     data['school_name'] = [x.text for x in schools]
     data['division'] = [division]*len(schools)
-    data = pd.DataFrame(data)
+    return pd.DataFrame(data)
 
-    data.to_sql(data_type, engine, schema = schema_name, if_exists = 'append', index = False)
-
-def conference(engine, data_type, schema_name, file_name, soup):
+def conference(file_name, soup):
     school_id = int(file_name[:-5].split('_')[1])
     seasons = range(params['mbb']['min_season'], params['mbb']['max_season'] + 1)
 
@@ -36,11 +33,9 @@ def conference(engine, data_type, schema_name, file_name, soup):
     data['season'] = [x for x in reversed(seasons)]
     data['school_id'] = [school_id]*len(rows)
     data['conference'] = [x.find_all('td')[3].text for x in rows]
-    data = pd.DataFrame(data)
+    return pd.DataFrame(data)
 
-    data.to_sql(data_type, engine, schema = schema_name, if_exists = 'append', index = False)
-
-def facility(engine, data_type, schema_name, file_name, soup):
+def facility(file_name, soup):
     season_id, school_id = int(file_name[:-5].split('_')[0]), int(file_name[:-5].split('_')[1])
 
     fac_text = soup.find('div', {'id': 'facility_div'}).text
@@ -51,11 +46,9 @@ def facility(engine, data_type, schema_name, file_name, soup):
     data['arena'] = [arena_re.search(fac_text).group(0) if arena_re.search(fac_text) else None]
     data['capacity'] = [int(re.sub(',', '', capacity_re.search(fac_text).group(0)))
         if capacity_re.search(fac_text) else None]
-    data = pd.DataFrame(data)
+    return pd.DataFrame(data)
 
-    data.to_sql(data_type, engine, schema = schema_name, if_exists = 'append', index = False)
-
-def coach(engine, data_type, schema_name, file_name, soup):
+def coach(file_name, soup):
     season_id, school_id = int(file_name[:-5].split('_')[0]), int(file_name[:-5].split('_')[1])
 
     coaches = soup.find('div', {'id': 'head_coaches_div'}).find('fieldset')
@@ -68,11 +61,9 @@ def coach(engine, data_type, schema_name, file_name, soup):
     data['coach_name'] = [coach.find('a').text for coach in coaches]
     data['wins'] = [int(record_re.search(coach.text).group(0).split('-')[0]) for coach in coaches]
     data['losses'] = [int(record_re.search(coach.text).group(0).split('-')[1]) for coach in coaches]
-    data = pd.DataFrame(data)
+    return pd.DataFrame(data)
 
-    data.to_sql(data_type, engine, schema = schema_name, if_exists = 'append', index = False)
-
-def schedule(engine, data_type, schema_name, file_name, soup):
+def schedule(file_name, soup):
     season_id, school_id = int(file_name[:-5].split('_')[0]), int(file_name[:-5].split('_')[1])
 
     schedule = soup.find('td', text = re.compile('schedule', re.I)).find_parent('table')
@@ -98,11 +89,9 @@ def schedule(engine, data_type, schema_name, file_name, soup):
     data['opp_pts'] = [int(x.find_all('td')[2].text.strip()[2:].split(' ')[2]) for x in games]
     data['ot'] = [int(ot_re.search(x.find_all('td')[2].text.strip()[2:]).group(0))
         if ot_re.search(x.find_all('td')[2].text.strip()[2:]) else 0 for x in games]
-    data = pd.DataFrame(data)
+    return pd.DataFrame(data)
 
-    data.to_sql(data_type, engine, schema = schema_name, if_exists = 'append', index = False)
-
-def roster(engine, data_type, schema_name, file_name, soup):
+def roster(file_name, soup):
     season_id, school_id = int(file_name[:-5].split('_')[0]), int(file_name[:-5].split('_')[1])
 
     players = soup.find('th', text = re.compile('Roster')).find_parent('table').find('tbody').find_all('tr')
@@ -120,11 +109,9 @@ def roster(engine, data_type, schema_name, file_name, soup):
         if x[3] not in ['','-'] else None for x in players]
     data['class'] = [x[4] if x[4] not in ['','N/A'] else None for x in players]
     data = pd.DataFrame(data)
-    data = data.loc[data.jersey.isin(range(100) + [None]) & (data.player_name != 'Use, Don\'t')]
+    return data.loc[data.jersey.isin(range(100) + [None]) & (data.player_name != 'Use, Don\'t')]
 
-    data.to_sql(data_type, engine, schema = schema_name, if_exists = 'append', index = False)
-
-def summary(engine, data_type, schema_name, file_name, soup):
+def summary(file_name, soup):
     game_id = int(file_name[:-5])
 
     table = soup.find('td', text = re.compile('total', re.I)).find_parent('table')
@@ -141,11 +128,11 @@ def summary(engine, data_type, schema_name, file_name, soup):
         for stat in stats:
             stat_name = '_'.join([x.lower()[:5] for x in stat[0].split(' ')])
             data[stat_name] = [stat[1 + i] if len(stat) >= 2 + i else None]
-        data = pd.DataFrame(data)
+        summ_df = pd.concat([summ_df,pd.DataFrame(data)]) if 'summ_df' in locals().keys() else pd.DataFrame(data)
 
-        data.to_sql(data_type, engine, schema = schema_name, if_exists = 'append', index = False)
+    return summ_df
 
-def box_score(engine, data_type, schema_name, file_name, soup):
+def box_score(file_name, soup):
     game_id, period = int(file_name[:-5].split('_')[0]), int(file_name[:-5].split('_')[1])
 
     teams = [x.find_parent('table') for x in soup.find_all('tr', {'class': 'heading'})]
@@ -153,7 +140,6 @@ def box_score(engine, data_type, schema_name, file_name, soup):
     table = soup.find('td', text = re.compile('total', re.I)).find_parent('table')
     school_ids = [int(school_id_re.search(x.find('a').get('href')).group(0)) if x.find('a') else None
                       for x in table.find_all('tr', {'class': None})]
-
 
     for i, team in enumerate(teams):
         school_name = team.find('td').get_text(strip = True)
@@ -190,39 +176,32 @@ def box_score(engine, data_type, schema_name, file_name, soup):
                 raise ValueError(game_id, period)
             var_name = var_name[:-1] if var_name[-1] == 's' else var_name
             data[var_name] = [int(x[j].text.strip()) if x[j].text.strip() != '' else None for x in players]
-        data = pd.DataFrame(data)
+        box_df = pd.concat([box_df,pd.DataFrame(data)]) if 'box_df' in locals().keys() else pd.DataFrame(data)
 
-        data.to_sql(data_type, engine, schema = schema_name, if_exists = 'append', index = False)
+    return box_df
 
-def game_time(engine, data_type, schema_name, file_name, soup):
+def game_time(file_name, soup):
     game_id = int(file_name[:-5])
 
     game_time = soup.find('td', text = 'Game Date:').find_next().text
 
-    data = pd.DataFrame([[game_id, game_time]], columns = ['game_id','game_time'])
+    return pd.DataFrame([[game_id, game_time]], columns = ['game_id','game_time'])
 
-    data.to_sql(data_type, engine, schema = schema_name, if_exists = 'append', index = False,
-                dtype = {'game_time': sqlalchemy.types.VARCHAR})
-
-def game_location(engine, data_type, schema_name, file_name, soup):
+def game_location(file_name, soup):
     game_id = int(file_name[:-5])
 
     game_loc = soup.find('td', text = 'Location:').find_next().text if soup.find('td', text = 'Location:') else None
 
-    data = pd.DataFrame([[game_id, game_loc]], columns = ['game_id','game_loc'])
+    return pd.DataFrame([[game_id, game_loc]], columns = ['game_id','game_loc'])
 
-    data.to_sql(data_type, engine, schema = schema_name, if_exists = 'append', index = False)
-
-def officials(engine, data_type, schema_name, file_name, soup):
+def officials(file_name, soup):
     game_id = int(file_name[:-5])
 
     officials = soup.find('td', text = 'Officials:').find_next().text.strip()
 
-    data = pd.DataFrame([[game_id, officials]], columns = ['game_id','officials'])
+    return pd.DataFrame([[game_id, officials]], columns = ['game_id','officials'])
 
-    data.to_sql(data_type, engine, schema = schema_name, if_exists = 'append', index = False)
-
-def pbp(engine, data_type, schema_name, file_name, soup):
+def pbp(file_name, soup):
     game_id = int(file_name[:-5])
 
     teams = [x.find('td') for x in
@@ -254,6 +233,6 @@ def pbp(engine, data_type, schema_name, file_name, soup):
         data['school2_name'] = [teams[1].text]*len(events)
         data['school2_event'] = [re.sub(r'[^\x00-\x7F]+','',x.find_all('td')[3].text)
                                 if x.find_all('td')[3].text != '' else None for x in events]
-        data = pd.DataFrame(data)
+        pbp_df = pd.concat([pbp_df,pd.DataFrame(data)]) if 'pbp_df' in locals().keys() else pd.DataFrame(data)
 
-        data.to_sql(data_type, engine, schema = schema_name, if_exists = 'append', index = False)
+    return pbp_df
