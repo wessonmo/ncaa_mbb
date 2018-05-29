@@ -9,7 +9,7 @@ record_re = re.compile('(?<=Record: )[0-9]+\-[0-9]+')
 ot_re = re.compile('(?<=\()[0-9]+(?=OT\))')
 school_id_re = re.compile('(?<=team\/)[0-9]+(?=\/)')
 
-def team_index(file_name, soup):
+def team_index(csv_file, csv_exist, file_name, soup):
     season, division = int(file_name[:4]), int(file_name[5])
 
     schools = soup.find_all('a', href = re.compile('\/team\/[0-9]+\/[0-9]+$'))
@@ -20,9 +20,11 @@ def team_index(file_name, soup):
     data['school_id'] = [int(x.get('href').split('/')[2]) for x in schools]
     data['school_name'] = [x.text for x in schools]
     data['division'] = [division]*len(schools)
-    return pd.DataFrame(data)
 
-def conference(file_name, soup):
+    df = pd.DataFrame(data)
+    df.to_csv(csv_file, mode='a' if csv_exist else 'w', header=not csv_exist, index=False)
+
+def conference(csv_file, csv_exist, file_name, soup):
     school_id = int(file_name[:-5].split('_')[1])
     seasons = range(params['mbb']['min_season'], params['mbb']['max_season'] + 1)
 
@@ -33,9 +35,11 @@ def conference(file_name, soup):
     data['season'] = [x for x in reversed(seasons)]
     data['school_id'] = [school_id]*len(rows)
     data['conference'] = [x.find_all('td')[3].text for x in rows]
-    return pd.DataFrame(data)
 
-def facility(file_name, soup):
+    df = pd.DataFrame(data)
+    df.to_csv(csv_file, mode='a' if csv_exist else 'w', header=not csv_exist, index=False)
+
+def facility(csv_file, csv_exist, file_name, soup):
     season_id, school_id = int(file_name[:-5].split('_')[0]), int(file_name[:-5].split('_')[1])
 
     fac_text = soup.find('div', {'id': 'facility_div'}).text
@@ -46,9 +50,11 @@ def facility(file_name, soup):
     data['arena'] = [arena_re.search(fac_text).group(0) if arena_re.search(fac_text) else None]
     data['capacity'] = [int(re.sub(',', '', capacity_re.search(fac_text).group(0)))
         if capacity_re.search(fac_text) else None]
-    return pd.DataFrame(data)
 
-def coach(file_name, soup):
+    df = pd.DataFrame(data)
+    df.to_csv(csv_file, mode='a' if csv_exist else 'w', header=not csv_exist, index=False)
+
+def coach(csv_file, csv_exist, file_name, soup):
     season_id, school_id = int(file_name[:-5].split('_')[0]), int(file_name[:-5].split('_')[1])
 
     coaches = soup.find('div', {'id': 'head_coaches_div'}).find('fieldset')
@@ -61,9 +67,11 @@ def coach(file_name, soup):
     data['coach_name'] = [coach.find('a').text for coach in coaches]
     data['wins'] = [int(record_re.search(coach.text).group(0).split('-')[0]) for coach in coaches]
     data['losses'] = [int(record_re.search(coach.text).group(0).split('-')[1]) for coach in coaches]
-    return pd.DataFrame(data)
 
-def schedule(file_name, soup):
+    df = pd.DataFrame(data)
+    df.to_csv(csv_file, mode='a' if csv_exist else 'w', header=not csv_exist, index=False)
+
+def schedule(csv_file, csv_exist, file_name, soup):
     season_id, school_id = int(file_name[:-5].split('_')[0]), int(file_name[:-5].split('_')[1])
 
     schedule = soup.find('td', text = re.compile('schedule', re.I)).find_parent('table')
@@ -89,9 +97,11 @@ def schedule(file_name, soup):
     data['opp_pts'] = [int(x.find_all('td')[2].text.strip()[2:].split(' ')[2]) for x in games]
     data['ot'] = [int(ot_re.search(x.find_all('td')[2].text.strip()[2:]).group(0))
         if ot_re.search(x.find_all('td')[2].text.strip()[2:]) else 0 for x in games]
-    return pd.DataFrame(data)
 
-def roster(file_name, soup):
+    df = pd.DataFrame(data)
+    df.to_csv(csv_file, mode='a' if csv_exist else 'w', header=not csv_exist, index=False)
+
+def roster(csv_file, csv_exist, file_name, soup):
     season_id, school_id = int(file_name[:-5].split('_')[0]), int(file_name[:-5].split('_')[1])
 
     players = soup.find('th', text = re.compile('Roster')).find_parent('table').find('tbody').find_all('tr')
@@ -108,10 +118,12 @@ def roster(file_name, soup):
     data['height'] = [int(x[3].split('-')[0])*12 + int(x[3].split('-')[1])
         if x[3] not in ['','-'] else None for x in players]
     data['class'] = [x[4] if x[4] not in ['','N/A'] else None for x in players]
-    data = pd.DataFrame(data)
-    return data.loc[data.jersey.isin(range(100) + [None]) & (data.player_name != 'Use, Don\'t')]
 
-def summary(file_name, soup):
+    df = pd.DataFrame(data)
+    df = df.loc[df.jersey.isin(range(100) + [None]) & (df.player_name != 'Use, Don\'t')]
+    df.to_csv(csv_file, mode='a' if csv_exist else 'w', header=not csv_exist, index=False)
+
+def summary(csv_file, csv_exist, file_name, soup):
     game_id = int(file_name[:-5])
 
     table = soup.find('td', text = re.compile('total', re.I)).find_parent('table')
@@ -128,11 +140,11 @@ def summary(file_name, soup):
         for stat in stats:
             stat_name = '_'.join([x.lower()[:5] for x in stat[0].split(' ')])
             data[stat_name] = [stat[1 + i] if len(stat) >= 2 + i else None]
-        summ_df = pd.concat([summ_df,pd.DataFrame(data)]) if 'summ_df' in locals().keys() else pd.DataFrame(data)
 
-    return summ_df
+        df = pd.DataFrame(data)
+        df.to_csv(csv_file, mode='a' if csv_exist else 'w', header=not csv_exist, index=False)
 
-def box_score(file_name, soup):
+def box_score(csv_file, csv_exist, file_name, soup):
     game_id, period = int(file_name[:-5].split('_')[0]), int(file_name[:-5].split('_')[1])
 
     teams = [x.find_parent('table') for x in soup.find_all('tr', {'class': 'heading'})]
@@ -148,60 +160,62 @@ def box_score(file_name, soup):
 
         players = [x.find_all('td') for x in team.find_all('tr', {'class': 'smtext'})]
         if players == []:
-            query = 'INSERT INTO {0}.{1} (game_id, period, school_id) VALUES ({2}, {3}, {4})'\
-                .format(schema_name, data_type, game_id, period, school_id)
-            engine.execute(query)
-            continue
+            if not csv_exist: continue
 
-        var_list = [x.text.lower() for x in team.find('tr', {'class': 'grey_heading'}).find_all('th')]
+            df = pd.DataFrame([[game_id, period, school_id]], columns=['game_id', 'period', 'school_id'])
+            df = df.reindex(columns=pd.read_csv(csv_file).columns)
+            df.to_csv(csv_file, mode='a' if csv_exist else 'w', header=not csv_exist, index=False)
+        else:
+            var_list = [x.text.lower() for x in team.find('tr', {'class': 'grey_heading'}).find_all('th')]
 
-        data = OrderedDict()
-        data['game_id'] = [game_id]*len(players)
-        data['period'] = [period]*len(players)
-        data['school_name'] = [school_name]*len(players)
-        data['school_id'] = [school_id]*len(players)
-        data['order'] = range(len(players))
-        data['player_id'] = [int(x[0].find('a').get('href').split('=')[-1]) if x[0].find('a') != None
-            else None for x in players]
-        data['player_name'] = [re.sub(r'[^\x00-\x7F]+','',x[0].text.strip()) for x in players]
-        data['pos'] = [x[1].text.strip() if x[1].text != '' else None for x in players]
-        minutes_text = [x[2].text.strip().split(':') if x[2].text.strip() != '' else None for x in players]
-        minute_format = 0 if sum([int(x[0]) for x in minutes_text if x]) else 1
-        data['min'] = [int(x[minute_format]) if x else None for x in minutes_text]
-        for j in range(3,18):
-            try:
-                var_name = var_list[j]\
-                    if ' ' not in var_list[j] else ''.join([var_list[j].split(' ')[0][0], var_list[j].split(' ')[1]])
-            except:
-                raise ValueError(game_id, period)
-            var_name = var_name[:-1] if var_name[-1] == 's' else var_name
-            data[var_name] = [int(x[j].text.strip()) if x[j].text.strip() != '' else None for x in players]
-        box_df = pd.concat([box_df,pd.DataFrame(data)]) if 'box_df' in locals().keys() else pd.DataFrame(data)
+            data = OrderedDict()
+            data['game_id'] = [game_id]*len(players)
+            data['period'] = [period]*len(players)
+            data['school_name'] = [school_name]*len(players)
+            data['school_id'] = [school_id]*len(players)
+            data['order'] = range(len(players))
+            data['player_id'] = [int(x[0].find('a').get('href').split('=')[-1]) if x[0].find('a') != None
+                else None for x in players]
+            data['player_name'] = [re.sub(r'[^\x00-\x7F]+','',x[0].text.strip()) for x in players]
+            data['pos'] = [x[1].text.strip() if x[1].text != '' else None for x in players]
+            minutes_text = [x[2].text.strip().split(':') if x[2].text.strip() != '' else None for x in players]
+            minute_format = 0 if sum([int(x[0]) for x in minutes_text if x]) else 1
+            data['min'] = [int(x[minute_format]) if x else None for x in minutes_text]
+            for j in range(3,18):
+                try:
+                    var_name = var_list[j] if ' ' not in var_list[j]\
+                        else ''.join([var_list[j].split(' ')[0][0], var_list[j].split(' ')[1]])
+                except:
+                    raise ValueError(game_id, period)
+                var_name = var_name[:-1] if var_name[-1] == 's' else var_name
+                data[var_name] = [int(x[j].text.strip()) if x[j].text.strip() != '' else None for x in players]
 
-    return box_df
+            df = pd.DataFrame(data)
+            df.to_csv(csv_file, mode='a' if csv_exist else 'w', header=not csv_exist, index=False)
+            csv_exist = True
 
-def game_time(file_name, soup):
+def game_time(csv_file, csv_exist, file_name, soup):
     game_id = int(file_name[:-5])
 
     game_time = soup.find('td', text = 'Game Date:').find_next().text
+    df = pd.DataFrame([[game_id, game_time]], columns = ['game_id','game_time'])
+    df.to_csv(csv_file, mode='a' if csv_exist else 'w', header=not csv_exist, index=False)
 
-    return pd.DataFrame([[game_id, game_time]], columns = ['game_id','game_time'])
-
-def game_location(file_name, soup):
+def game_location(csv_file, csv_exist, file_name, soup):
     game_id = int(file_name[:-5])
 
     game_loc = soup.find('td', text = 'Location:').find_next().text if soup.find('td', text = 'Location:') else None
+    df = pd.DataFrame([[game_id, game_loc]], columns = ['game_id','game_loc'])
+    df.to_csv(csv_file, mode='a' if csv_exist else 'w', header=not csv_exist, index=False)
 
-    return pd.DataFrame([[game_id, game_loc]], columns = ['game_id','game_loc'])
-
-def officials(file_name, soup):
+def officials(csv_file, csv_exist, file_name, soup):
     game_id = int(file_name[:-5])
 
     officials = soup.find('td', text = 'Officials:').find_next().text.strip()
+    df = pd.DataFrame([[game_id, officials]], columns = ['game_id','officials'])
+    df.to_csv(csv_file, mode='a' if csv_exist else 'w', header=not csv_exist, index=False)
 
-    return pd.DataFrame([[game_id, officials]], columns = ['game_id','officials'])
-
-def pbp(file_name, soup):
+def pbp(csv_file, csv_exist, file_name, soup):
     game_id = int(file_name[:-5])
 
     teams = [x.find('td') for x in
@@ -233,6 +247,6 @@ def pbp(file_name, soup):
         data['school2_name'] = [teams[1].text]*len(events)
         data['school2_event'] = [re.sub(r'[^\x00-\x7F]+','',x.find_all('td')[3].text)
                                 if x.find_all('td')[3].text != '' else None for x in events]
-        pbp_df = pd.concat([pbp_df,pd.DataFrame(data)]) if 'pbp_df' in locals().keys() else pd.DataFrame(data)
 
-    return pbp_df
+        df = pd.DataFrame(data)
+        df.to_csv(csv_file, mode='a' if csv_exist else 'w', header=not csv_exist, index=False)

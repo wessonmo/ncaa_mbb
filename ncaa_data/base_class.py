@@ -111,8 +111,7 @@ class base_data_type(object):
 
                 if re.compile('something went wrong').search(soup.text): continue
 
-                df = getattr(parsers, self.data_type)(file_name, soup)
-                df.to_csv(csv_file, mode='a' if csv_exist else 'w', header=not csv_exist, index=False)
+                df = getattr(parsers, self.data_type)(csv_file, csv_exist, file_name, soup)
                 csv_exist = True
 
                 self.completed += 1
