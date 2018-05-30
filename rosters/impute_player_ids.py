@@ -10,10 +10,10 @@ def impute_player_ids():
     roster_imputed_exist = os.path.exists(roster_imputed_path)
 
     if roster_imputed_exist:
-        team_index = pd.read_csv('{0}\\ncaa_data\\csv\\team_index.csv')[['season_id', 'school_id']]
+        team_index = pd.read_csv('{0}\\ncaa_data\\csv\\team_index.csv'.format(storage_dir))[['season_id', 'school_id']]
         all_team_ids = set(tuple(x) for x in team_index.values)
 
-        roster_imputed = pd.read_csv(impute_path)[['season_id', 'school_id']].drop_duplicates()
+        roster_imputed = pd.read_csv(roster_imputed_path)[['season_id', 'school_id']].drop_duplicates()
         imputed_team_ids = set(tuple(x) for x in roster_imputed.values)
 
         unimputed_teams = True if len(all_team_ids - imputed_team_ids) > 0 else False
