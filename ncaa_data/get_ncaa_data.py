@@ -18,4 +18,3 @@ def get_ncaa_data():
             )
         data_type.scrape_to_file()
         data_type.parse_to_csv()
-        data_type.dedupe_csv()

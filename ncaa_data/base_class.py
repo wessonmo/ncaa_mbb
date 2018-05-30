@@ -86,8 +86,7 @@ class base_data_type(object):
     def _define_parsed_html_files(self):
         csv_file = '{0}\\{1}.csv'.format(self.csv_path, self.data_type)
         try:
-            dtypes = pd.read_csv(csv_file, nrows=1000)[self.url_ids].dtypes
-            df = pd.read_csv(csv_file, dtype=dtypes)[self.url_ids].drop_duplicates()
+            df = pd.read_csv(csv_file, low_memory=False)[self.url_ids].drop_duplicates()
             self.parsed_htmls = set('{0}.html'.format('_'.join([str(y) for y in x])) for x in df.values)
         except IOError as err:
             if str(err) == 'File {0} does not exist'.format(csv_file):
@@ -126,8 +125,7 @@ class base_data_type(object):
         for data_type in self.parse_data_types:
             csv_file = '{0}\\{1}.csv'.format(self.csv_path, data_type)
             try:
-                dtypes = pd.read_csv(csv_file, nrows=1000)[self.url_ids].dtypes
-                df = pd.read_csv(csv_file, dtype=dtypes)[self.url_ids].drop_duplicates()
+                df = pd.read_csv(csv_file, low_memory=False)[self.url_ids].drop_duplicates()
                 parsed_files = set('{0}.html'.format('_'.join([str(y) for y in x])) for x in df.values)
                 for p_file in parsed_files:
                     self.remain_htmls[p_file] = [x for x in self.remain_htmls[p_file] if x != data_type]
@@ -153,13 +151,21 @@ class base_data_type(object):
                     csv_exist = os.path.exists(csv_file)
 
                     if data_type in self.remain_htmls[file_name]:
-                        df = getattr(parsers, self.data_type)(csv_file, csv_exist, file_name, soup)
+                        df = getattr(parsers, data_type)(csv_file, csv_exist, file_name, soup)
 
                 self.completed += 1
                 print_update('Parse', self.completed, self.total)
 
         stdout.flush()
         print('\t{0: >6} : {1: <14}'.format('Parse', 'Complete'))
+
+    def _dedupe_csv(self):
+        print('\t{0: >6} : {1: <14}'.format('Dedupe', ''), end='\r')
+        for data_type in self.parse_data_types:
+            csv_file = '{0}\\{1}.csv'.format(self.csv_path, data_type)
+            df = pd.read_csv(csv_file, low_memory=False).drop_duplicates()
+            df.to_csv(csv_file, mode='w', header=True, index=False)
+        print('\t{0: >6} : {1: <14}'.format('Dedupe', 'Complete'))
 
     def parse_to_csv(self):
         self._create_storage_folder(self.csv_path)
@@ -171,11 +177,4 @@ class base_data_type(object):
         else:
             self._define_remain_html_files__multi_parse()
             self._parse_remain_html_files__multi_parse()
-
-    def dedupe_csv(self):
-        print('\t{0: >6} : {1: <14}'.format('Dedupe', ''), end='\r')
-        for data_type in self.parse_data_types:
-            csv_file = '{0}\\{1}.csv'.format(self.csv_path, data_type)
-            df = pd.read_csv(csv_file).drop_duplicates()
-            df.to_csv(csv_file, mode='w', header=True, index=False)
-        print('\t{0: >6} : {1: <14}'.format('Dedupe', 'Complete'))
+        if self.data_type == 'conference': self._dedupe_csv()
