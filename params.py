@@ -3,7 +3,7 @@ params = {
        'min_season': 2013,
        'max_season': 2018,
        'max_division': 1,
-       'storage_dir': 'E:\\ncaa_mbb\\ncaa_data'
+       'storage_dir': 'E:\\ncaa_mbb'
        },
     'ncaa_data': {
         'data_types_order': ['team_index','team_info','conference','roster','summary','box_score','pbp'],
@@ -47,7 +47,7 @@ params = {
             'pbp': {
                     'href_frame': '/game/play_by_play/{0}',
                     'url_ids': ['game_id'],
-                    'scrape_table': 'schedule',
+                    'scrape_data_type': 'schedule',
                     'parse_data_types': ['game_time', 'game_location', 'officials', 'pbp']
                     }
             }
