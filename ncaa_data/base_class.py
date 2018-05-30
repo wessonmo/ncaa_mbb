@@ -24,8 +24,8 @@ class base_data_type(object):
         self.seasons = range(params['mbb']['min_season'], params['mbb']['max_season'] + 1)
         self.divisions = range(1, params['mbb']['max_division'] + 1)
 
-        self.html_path = '{0}\\html\\{1}'.format(self.storage_dir, self.data_type)
-        self.csv_path = '{0}\\csv'.format(self.storage_dir)
+        self.html_path = '{0}\\ncaa_data\\html\\{1}'.format(self.storage_dir, self.data_type)
+        self.csv_path = '{0}\\ncaa_data\\csv'.format(self.storage_dir)
 
 
     def _create_storage_folder(self, folder_path):
@@ -86,7 +86,8 @@ class base_data_type(object):
     def _define_parsed_html_files(self):
         csv_file = '{0}\\{1}.csv'.format(self.csv_path, self.data_type)
         try:
-            df = pd.read_csv(csv_file)[self.url_ids].drop_duplicates()
+            dtypes = pd.read_csv(csv_file, nrows=1000)[self.url_ids].dtypes
+            df = pd.read_csv(csv_file, dtype=dtypes)[self.url_ids].drop_duplicates()
             self.parsed_htmls = set('{0}.html'.format('_'.join([str(y) for y in x])) for x in df.values)
         except IOError as err:
             if str(err) == 'File {0} does not exist'.format(csv_file):
@@ -125,7 +126,8 @@ class base_data_type(object):
         for data_type in self.parse_data_types:
             csv_file = '{0}\\{1}.csv'.format(self.csv_path, data_type)
             try:
-                df = pd.read_csv(csv_file)[self.url_ids].drop_duplicates()
+                dtypes = pd.read_csv(csv_file, nrows=1000)[self.url_ids].dtypes
+                df = pd.read_csv(csv_file, dtype=dtypes)[self.url_ids].drop_duplicates()
                 parsed_files = set('{0}.html'.format('_'.join([str(y) for y in x])) for x in df.values)
                 for p_file in parsed_files:
                     self.remain_htmls[p_file] = [x for x in self.remain_htmls[p_file] if x != data_type]
@@ -151,8 +153,7 @@ class base_data_type(object):
                     csv_exist = os.path.exists(csv_file)
 
                     if data_type in self.remain_htmls[file_name]:
-                        df = getattr(parsers, data_type)(file_name, soup)
-                        df.to_csv(csv_file, mode='a' if csv_exist else 'w', header=not csv_exist, index=False)
+                        df = getattr(parsers, self.data_type)(csv_file, csv_exist, file_name, soup)
 
                 self.completed += 1
                 print_update('Parse', self.completed, self.total)
